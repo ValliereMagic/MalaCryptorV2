@@ -1,0 +1,7 @@
+[submodule "liboqs-rust"]
+	path = liboqs-rust
+	url = https://github.com/open-quantum-safe/liboqs-rust
+
+[submodule "sodiumoxide"]
+	path = sodiumoxide
+	url = https://github.com/sodiumoxide/sodiumoxide
