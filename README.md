@@ -6,10 +6,10 @@ cd MalaCryptorV2
 git submodule update --init --recursive
 cd mala_cryptor
 cargo build --release
-cargo run
+cargo run --release -- [OPTIONS]
 *or*
 cd target/release
-./mala_cryptor
+./mala_cryptor [OPTIONS]
 ```
 ## Output Example
 ```
