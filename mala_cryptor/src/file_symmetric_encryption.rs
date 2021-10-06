@@ -33,16 +33,13 @@ pub fn decrypt_file_with_password(
 // Keyfile based functions (TODO)
 
 // Base functions
-fn encrypt_file(
-	mut file_in: File,
-	mut file_out: File,
-	key: Key,
-) -> Result<()> {
+fn encrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
 	let (mut stream, header) =
 		Stream::init_push(&key).expect("Unable to initialize encryption stream");
 	// Write the stream header to the beginning of the encrypted file
 	file_out.write_all(&header.0)?;
 	let mut in_buff = [0u8; CHUNK_SIZE];
+	let mut out_buff: Vec<u8> = Vec::new();
 	loop {
 		let read_bytes = file_in.read(&mut in_buff)?;
 		if read_bytes == 0 {
@@ -53,34 +50,34 @@ fn encrypt_file(
 		} else {
 			Tag::Final
 		};
-		let out_buff = stream
-			.push(&in_buff[0..read_bytes], None, tag)
+		stream
+			.push_to_vec(&in_buff[0..read_bytes], None, tag, &mut out_buff)
 			.expect("Unable to push message stream");
 		file_out.write_all(&out_buff[..])?;
 	}
 	Ok(())
 }
 
-fn decrypt_file(
-	mut file_in: File,
-	mut file_out: File,
-	key: Key,
-) -> Result<()> {
+fn decrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
 	// Read in the stream header from the file to decrypt
 	let mut header = Header([0u8; HEADERBYTES]);
 	file_in.read_exact(&mut header.0)?;
 	let mut stream =
 		Stream::init_pull(&header, &key).expect("Unable to initialize decryption stream");
 	let mut in_buff = [0u8; CHUNK_SIZE + ABYTES];
+	let mut out_buff: Vec<u8> = Vec::new();
 	while stream.is_not_finalized() {
 		let read_bytes = file_in.read(&mut in_buff)?;
-		let (decrypted_bytes, _) = match stream.pull(&in_buff[0..read_bytes], None) {
-			Ok((b, e)) => (b, e),
+		match stream.pull_to_vec(&in_buff[0..read_bytes], None, &mut out_buff) {
+			Ok(_) => (),
 			Err(_) => {
-				return Err(Error::new(ErrorKind::Other, "Error while decrypting file stream, possible tampering or bad key"));
+				return Err(Error::new(
+					ErrorKind::Other,
+					"Error while decrypting file stream, possible tampering or bad key",
+				));
 			}
 		};
-		file_out.write_all(&decrypted_bytes[..])?;
+		file_out.write_all(&out_buff[..])?;
 	}
 	Ok(())
 }
