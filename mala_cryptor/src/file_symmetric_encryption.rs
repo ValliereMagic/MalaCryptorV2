@@ -30,25 +30,33 @@ pub fn decrypt_file_with_password(
 	let (_, key) = key_derive_from_pass(password, Some(salt));
 	decrypt_file(file_in, file_out, key)
 }
-// Keyfile based functions (TODO)
+// Keyfile based functions
+pub fn encrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) -> Result<()> {
+	let (file_in, file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	encrypt_file(file_in, file_out, key)
+}
 
+pub fn decrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) -> Result<()> {
+	let (file_in, file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	decrypt_file(file_in, file_out, key)
+}
 // Base functions
 fn encrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
 	let (mut stream, header) =
 		Stream::init_push(&key).expect("Unable to initialize encryption stream");
+	// Figure out how many chunks we will iterate through
+	let file_len = file_in.metadata().unwrap().len();
+	let num_iterations = f64::ceil(file_len as f64 / CHUNK_SIZE as f64) as usize;
 	// Write the stream header to the beginning of the encrypted file
 	file_out.write_all(&header.0)?;
 	let mut in_buff = [0u8; CHUNK_SIZE];
 	let mut out_buff: Vec<u8> = Vec::new();
-	loop {
+	for i in 0..num_iterations {
 		let read_bytes = file_in.read(&mut in_buff)?;
-		if read_bytes == 0 {
-			break;
-		};
-		let tag = if read_bytes == CHUNK_SIZE {
-			Tag::Message
-		} else {
+		let tag = if i == num_iterations - 1 {
 			Tag::Final
+		} else {
+			Tag::Message
 		};
 		stream
 			.push_to_vec(&in_buff[0..read_bytes], None, tag, &mut out_buff)
