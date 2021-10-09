@@ -4,6 +4,7 @@ use sodiumoxide::crypto::{
 };
 
 pub fn key_derive_from_pass(pass: &str, salt: Option<Salt>) -> (Salt, Key) {
+	sodiumoxide::init().expect("Unable to initialize libsodium.");
 	let mut key = Key([0u8; KEYBYTES]);
 	let salt = match salt {
 		Some(salt) => salt,
