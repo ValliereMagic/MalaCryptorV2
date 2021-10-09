@@ -90,6 +90,17 @@ fn main() -> Result<()> {
 	// The user is doing symmetric encryption
 	if let Some(sym) = matches.subcommand_matches("sym") {
 		// Get the options from clap (need to do for both enc and dec)
+		fn get_outfile_options<'a>(options: &'a clap::ArgMatches) -> Result<&'a str> {
+			match options.value_of("out_file") {
+				Some(f) => Ok(f),
+				None => {
+					return Err(Error::new(
+						ErrorKind::Other,
+						"Output file must be specified.",
+					));
+				}
+			}
+		}
 		fn get_sym_options<'a>(
 			options: &'a clap::ArgMatches,
 		) -> Result<(Option<&'a str>, &'a str, &'a str)> {
@@ -104,16 +115,7 @@ fn main() -> Result<()> {
 					));
 				}
 			};
-			let out_file = match options.value_of("out_file") {
-				Some(f) => f,
-				None => {
-					return Err(Error::new(
-						ErrorKind::Other,
-						"Output file must be specified.",
-					));
-				}
-			};
-			Ok((key_file, in_file, out_file))
+			Ok((key_file, in_file, get_outfile_options(options)?))
 		}
 		// User is encrypting a file
 		if let Some(enc) = sym.subcommand_matches("enc") {
@@ -137,15 +139,7 @@ fn main() -> Result<()> {
 			}
 		// User is generating a keyfile
 		} else if let Some(gen) = sym.subcommand_matches("gen") {
-			let out_file = match gen.value_of("out_file") {
-				Some(f) => f,
-				None => {
-					return Err(Error::new(
-						ErrorKind::Other,
-						"Output file must be specified.",
-					));
-				}
-			};
+			let out_file = get_outfile_options(gen)?;
 			gen_symmetric_keyfile(&out_file)?;
 		}
 	// The User is doing public key encryption
