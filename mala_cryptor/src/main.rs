@@ -1,3 +1,4 @@
+mod enc_algos_in_use;
 mod file_symmetric_encryption;
 mod key_derivation;
 mod key_file;
@@ -5,10 +6,14 @@ mod key_file;
 use clap::{App, AppSettings, SubCommand};
 use file_symmetric_encryption::*;
 use key_file::*;
+use oqs;
 use rpassword::prompt_password_stdout;
+use sodiumoxide;
 use std::io::{Error, ErrorKind, Result};
 
 fn main() -> Result<()> {
+	oqs::init();
+	sodiumoxide::init().expect("Unable to initialize libsodium.");
 	let matches = App::new("mala_cryptor")
 		.version("0.2.0")
 		.author("ValliereMagic")
@@ -170,9 +175,9 @@ fn main() -> Result<()> {
 						return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
 					}
 					match m.chars().next().unwrap() {
-						'q' => gen_quantum_keypair(public_key, secret_key)?,
-						'c' => gen_classical_keypair(public_key, secret_key)?,
-						'h' => gen_hybrid_keypair(public_key, secret_key)?,
+						'q' => quantum::gen(public_key, secret_key)?,
+						'c' => classical::gen(public_key, secret_key)?,
+						'h' => hybrid::gen(public_key, secret_key)?,
 						_ => {
 							return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
 						}
@@ -181,7 +186,6 @@ fn main() -> Result<()> {
 				None => return Err(Error::new(ErrorKind::Other, "A mode must be specified.")),
 			};
 		}
-		unimplemented!();
 	}
 	Ok(())
 }
