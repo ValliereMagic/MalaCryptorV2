@@ -32,6 +32,8 @@ pub mod symmetric {
 	}
 }
 
+// Acquire the active signature or key exchange algorithm for OQS. Defined in
+// one place to reduce code duplication.
 fn get_q_sig_algo() -> Sig {
 	Sig::new(QSIGN_ALGO).expect("Unable to acquire quantum SIG algo.")
 }
@@ -45,6 +47,9 @@ fn get_q_kem_algo() -> Kem {
 // where:
 // qkey: [q_sig_key][q_kem_key]
 // classical_key: [c_sig_key][c_kem_key]
+
+// Calls the other modules to handle composite keypairs. Classically encrypted
+// wrapped in quantum, in cascade.
 pub mod hybrid {
 	use super::*;
 
@@ -71,7 +76,9 @@ pub mod quantum {
 	use super::*;
 	pub type QuantumSKey = (sig::SecretKey, kem::SecretKey);
 	pub type QuantumPKey = (sig::PublicKey, kem::PublicKey);
-
+	// Generate a quantum pair consisting of a signature keypair and a KEM
+	// keypair. Write them both to the files passed. Signature goes first, then
+	// KEM key.
 	pub fn gen(pkey_path: &str, skey_path: &str) -> Result<()> {
 		let kem = get_q_kem_algo();
 		let sig = get_q_sig_algo();
@@ -86,7 +93,8 @@ pub mod quantum {
 		skey_f.write_all(&skey.into_vec())?;
 		Ok(())
 	}
-
+	// Retrieve the 2 public keys from within a private quantum keypair file,
+	// and return them.
 	pub fn get_pub(pkey_path: &str) -> Result<QuantumPKey> {
 		let kem = get_q_kem_algo();
 		let sig = get_q_sig_algo();
@@ -102,7 +110,8 @@ pub mod quantum {
 			kem.public_key_from_bytes(&q_kem[..]).unwrap().to_owned(),
 		))
 	}
-
+	// Retrieve the 2 private keys from within a private quantum keypair file,
+	// and return them.
 	pub fn get_priv(skey_path: &str) -> Result<QuantumSKey> {
 		let kem = get_q_kem_algo();
 		let sig = get_q_sig_algo();
@@ -143,6 +152,8 @@ mod _classical {
 		let sig = get_q_sig_algo();
 		(sig.length_secret_key() + kem.length_secret_key()) as u64
 	}
+	// Generate a public-private classical keypair consisting of a signing key,
+	// and KEM key
 	pub fn gen(pkey_path: &str, skey_path: &str) -> Result<()> {
 		hyb_gen(pkey_path, skey_path, false)
 	}
@@ -165,6 +176,8 @@ mod _classical {
 		skey_f.write_all(&skey.0)?;
 		Ok(())
 	}
+	// Retrieve the public portion of a public-private keypair. 2 keys in total;
+	// one for signing and one for key exchange.
 	pub fn get_pub(pkey_path: &str) -> Result<ClassicalPKey> {
 		hyb_get_pub(pkey_path, false)
 	}
@@ -181,6 +194,8 @@ mod _classical {
 		pkey_f.read_exact(&mut c_kem[..])?;
 		Ok((sign::PublicKey(c_sig), kx::PublicKey(c_kem)))
 	}
+	// Retrieve the private portion of a public-private keypair. 2 keys in total;
+	// one for signing and one for key exchange.
 	pub fn get_priv(skey_path: &str) -> Result<ClassicalSKey> {
 		hyb_get_priv(skey_path, false)
 	}
