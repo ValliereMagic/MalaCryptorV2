@@ -126,7 +126,7 @@ fn main() -> Result<()> {
 		if let Some(enc) = sym.subcommand_matches("enc") {
 			let (key_file, in_file, out_file) = get_sym_options(enc)?;
 			if let Some(key_file_path) = key_file {
-				encrypt_file_with_key(in_file, out_file, get_symmetric_keyfile(key_file_path)?)?;
+				encrypt_file_with_key(in_file, out_file, symmetric::get(key_file_path)?)?;
 			} else {
 				// Get the password from the user
 				let pass = prompt_password_stdout("Enter the file password: ").unwrap();
@@ -136,7 +136,7 @@ fn main() -> Result<()> {
 		} else if let Some(dec) = sym.subcommand_matches("dec") {
 			let (key_file, in_file, out_file) = get_sym_options(dec)?;
 			if let Some(key_file_path) = key_file {
-				decrypt_file_with_key(in_file, out_file, get_symmetric_keyfile(key_file_path)?)?;
+				decrypt_file_with_key(in_file, out_file, symmetric::get(key_file_path)?)?;
 			} else {
 				// Get the password from the user
 				let pass = prompt_password_stdout("Enter the file password: ").unwrap();
@@ -145,7 +145,7 @@ fn main() -> Result<()> {
 		// User is generating a keyfile
 		} else if let Some(gen) = sym.subcommand_matches("gen") {
 			let out_file = get_outfile_options(gen)?;
-			gen_symmetric_keyfile(&out_file)?;
+			symmetric::gen(&out_file)?;
 		}
 	// The User is doing public key encryption
 	} else if let Some(public) = matches.subcommand_matches("pub") {
