@@ -8,6 +8,7 @@ use sodiumoxide::crypto::{
 	kx, secretstream::gen_key, secretstream::Key, secretstream::KEYBYTES, sign,
 };
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
@@ -62,7 +63,7 @@ pub mod hybrid {
 	use super::*;
 	pub fn gen(pkey_path: &str, skey_path: &str) -> Result<()> {
 		quantum::gen(pkey_path, skey_path)?;
-		classical::gen(pkey_path, skey_path)?;
+		_classical::hyb_gen(pkey_path, skey_path, true)?;
 		Ok(())
 	}
 	pub fn get_pub(pkey_path: &str) -> Result<(quantum::QuantumPKey, classical::ClassicalPKey)> {
@@ -159,10 +160,20 @@ mod _classical {
 	fn hybrid_priv_jump() -> u64 {
 		(get_sig().length_secret_key() + get_kem().length_secret_key()) as u64
 	}
-	// Not currently working...
-	// Will overwrite quantum key when generating a hybrid keypair.
 	pub fn gen(pkey_path: &str, skey_path: &str) -> Result<()> {
-		let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
+		hyb_gen(pkey_path, skey_path, false)
+	}
+	// If this is a hybrid key file we need to append to the file at the path
+	// passed. Otherwise we will overwrite what is already there.
+	pub fn hyb_gen(pkey_path: &str, skey_path: &str, hyb: bool) -> Result<()> {
+		let (mut pkey_f, mut skey_f) = if hyb {
+			(
+				OpenOptions::new().append(true).open(pkey_path)?,
+				OpenOptions::new().append(true).open(skey_path)?,
+			)
+		} else {
+			(File::create(pkey_path)?, File::create(skey_path)?)
+		};
 		let (sig_pkey, sig_skey) = sign::gen_keypair();
 		let (pkey, skey) = kx::gen_keypair();
 		pkey_f.write_all(&sig_pkey.0)?;
@@ -174,6 +185,8 @@ mod _classical {
 	pub fn get_pub(pkey_path: &str) -> Result<ClassicalPKey> {
 		hyb_get_pub(pkey_path, false)
 	}
+	// If this is a hybrid hey file we need to jump over the quantum section
+	// before reading; as to not read in the wrong keys.
 	pub fn hyb_get_pub(pkey_path: &str, hyb: bool) -> Result<ClassicalPKey> {
 		let mut pkey_f = File::open(pkey_path)?;
 		if hyb {
@@ -188,6 +201,8 @@ mod _classical {
 	pub fn get_priv(skey_path: &str) -> Result<ClassicalSKey> {
 		hyb_get_priv(skey_path, false)
 	}
+	// If this is a hybrid hey file we need to jump over the quantum section
+	// before reading; as to not read in the wrong keys.
 	pub fn hyb_get_priv(skey_path: &str, hyb: bool) -> Result<ClassicalSKey> {
 		let mut skey_f = File::open(skey_path)?;
 		if hyb {
