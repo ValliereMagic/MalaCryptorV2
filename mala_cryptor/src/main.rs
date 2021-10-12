@@ -1,4 +1,5 @@
 mod enc_algos_in_use;
+mod file_asymmetric_encryption;
 mod file_symmetric_encryption;
 mod key_derivation;
 mod key_file;
