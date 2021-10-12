@@ -2,6 +2,7 @@ mod enc_algos_in_use;
 mod file_asymmetric_encryption;
 mod file_symmetric_encryption;
 mod key_derivation;
+mod global_constants;
 mod key_file;
 
 use clap::{App, AppSettings, SubCommand};

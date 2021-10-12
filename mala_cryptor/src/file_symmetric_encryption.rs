@@ -1,3 +1,4 @@
+use crate::global_constants::*;
 use crate::key_derivation::key_derive_from_pass;
 use sodiumoxide::crypto::pwhash::Salt;
 use sodiumoxide::crypto::secretstream::{Header, Key, Stream, Tag, ABYTES, HEADERBYTES};
@@ -5,18 +6,16 @@ use std::fs::File;
 use std::io::prelude::*;
 use std::io::{Error, ErrorKind, Result};
 
-const CHUNK_SIZE: usize = 4096;
-
 // Password based functions
 pub fn encrypt_file_with_password(
 	file_in_path: &str,
 	file_out_path: &str,
 	password: &str,
 ) -> std::io::Result<()> {
-	let (file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
 	let (salt, key) = key_derive_from_pass(password, None);
 	file_out.write_all(&salt.0)?;
-	encrypt_file(file_in, file_out, key)
+	encrypt_file(&mut file_in, &mut file_out, key)
 }
 
 pub fn decrypt_file_with_password(
@@ -24,24 +23,24 @@ pub fn decrypt_file_with_password(
 	file_out_path: &str,
 	password: &str,
 ) -> std::io::Result<()> {
-	let (mut file_in, file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
 	let mut salt = Salt([0u8; 32]);
 	file_in.read_exact(&mut salt.0)?;
 	let (_, key) = key_derive_from_pass(password, Some(salt));
-	decrypt_file(file_in, file_out, key)
+	decrypt_file(&mut file_in, &mut file_out, key)
 }
 // Keyfile based functions
 pub fn encrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) -> Result<()> {
-	let (file_in, file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
-	encrypt_file(file_in, file_out, key)
+	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	encrypt_file(&mut file_in, &mut file_out, key)
 }
 
 pub fn decrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) -> Result<()> {
-	let (file_in, file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
-	decrypt_file(file_in, file_out, key)
+	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
+	decrypt_file(&mut file_in, &mut file_out, key)
 }
 // Base functions
-fn encrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
+pub fn encrypt_file(file_in: &mut File, file_out: &mut File, key: Key) -> Result<()> {
 	let (mut stream, header) =
 		Stream::init_push(&key).expect("Unable to initialize encryption stream");
 	// Figure out how many chunks we will iterate through
@@ -66,7 +65,7 @@ fn encrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
 	Ok(())
 }
 
-fn decrypt_file(mut file_in: File, mut file_out: File, key: Key) -> Result<()> {
+pub fn decrypt_file(file_in: &mut File, file_out: &mut File, key: Key) -> Result<()> {
 	// Read in the stream header from the file to decrypt
 	let mut header = Header([0u8; HEADERBYTES]);
 	file_in.read_exact(&mut header.0)?;

@@ -32,16 +32,6 @@ pub mod symmetric {
 	}
 }
 
-// Acquire the active signature or key exchange algorithm for OQS. Defined in
-// one place to reduce code duplication.
-fn get_q_sig_algo() -> Sig {
-	Sig::new(QSIGN_ALGO).expect("Unable to acquire quantum SIG algo.")
-}
-
-fn get_q_kem_algo() -> Kem {
-	Kem::new(QKEM_ALGO).expect("Unable to acquire quantum KEM algo.")
-}
-
 // File format:
 // [qkey][classical_key]
 // where:
