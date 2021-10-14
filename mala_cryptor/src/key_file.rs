@@ -1,4 +1,4 @@
-use crate::enc_algos_in_use::*;
+use crate::enc_algos_in_use;
 use kem::Kem;
 use oqs::kem;
 use oqs::sig;
@@ -70,8 +70,8 @@ pub mod quantum {
 	// keypair. Write them both to the files passed. Signature goes first, then
 	// KEM key.
 	pub fn gen(pkey_path: &str, skey_path: &str) -> Result<()> {
-		let kem = get_q_kem_algo();
-		let sig = get_q_sig_algo();
+		let kem = enc_algos_in_use::get_q_kem_algo();
+		let sig = enc_algos_in_use::get_q_sig_algo();
 		let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
 		let (sig_pkey, sig_skey) = sig
 			.keypair()
@@ -86,8 +86,8 @@ pub mod quantum {
 	// Retrieve the 2 public keys from within a private quantum keypair file,
 	// and return them.
 	pub fn get_pub(pkey_path: &str) -> Result<QuantumPKey> {
-		let kem = get_q_kem_algo();
-		let sig = get_q_sig_algo();
+		let kem = enc_algos_in_use::get_q_kem_algo();
+		let sig = enc_algos_in_use::get_q_sig_algo();
 		let mut pkey_f = File::open(pkey_path)?;
 		let mut q_sig = Vec::with_capacity(sig.length_public_key());
 		q_sig.resize(sig.length_public_key(), 0);
@@ -103,8 +103,8 @@ pub mod quantum {
 	// Retrieve the 2 private keys from within a private quantum keypair file,
 	// and return them.
 	pub fn get_priv(skey_path: &str) -> Result<QuantumSKey> {
-		let kem = get_q_kem_algo();
-		let sig = get_q_sig_algo();
+		let kem = enc_algos_in_use::get_q_kem_algo();
+		let sig = enc_algos_in_use::get_q_sig_algo();
 		let mut skey_f = File::open(skey_path)?;
 		let mut q_sig = Vec::with_capacity(sig.length_secret_key());
 		q_sig.resize(sig.length_secret_key(), 0);
@@ -132,14 +132,14 @@ mod _classical {
 	pub type ClassicalPKey = (sign::PublicKey, kx::PublicKey);
 	// The length needed to jump over the quantum section of a hybrid public key
 	fn hybrid_pub_jump() -> u64 {
-		let kem = get_q_kem_algo();
-		let sig = get_q_sig_algo();
+		let kem = enc_algos_in_use::get_q_kem_algo();
+		let sig = enc_algos_in_use::get_q_sig_algo();
 		(sig.length_public_key() + kem.length_public_key()) as u64
 	}
 	// The length needed to jump over the quantum section of a hybrid private key
 	fn hybrid_priv_jump() -> u64 {
-		let kem = get_q_kem_algo();
-		let sig = get_q_sig_algo();
+		let kem = enc_algos_in_use::get_q_kem_algo();
+		let sig = enc_algos_in_use::get_q_sig_algo();
 		(sig.length_secret_key() + kem.length_secret_key()) as u64
 	}
 	// Generate a public-private classical keypair consisting of a signing key,
