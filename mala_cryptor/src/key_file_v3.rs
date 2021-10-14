@@ -50,10 +50,10 @@ impl KeyQuad<sig::PublicKey, kem::PublicKey, sig::SecretKey, kem::SecretKey> for
 			.kem_alg
 			.keypair()
 			.expect("Unable to generate quantum KEM keypair.");
-		pkey_f.write_all(&sig_pkey.as_ref().to_vec())?;
-		pkey_f.write_all(&kem_pkey.as_ref().to_vec())?;
-		skey_f.write_all(&sig_skey.as_ref().to_vec())?;
-		skey_f.write_all(&kem_skey.as_ref().to_vec())?;
+		pkey_f.write_all(&sig_pkey.as_ref())?;
+		pkey_f.write_all(&kem_pkey.as_ref())?;
+		skey_f.write_all(&sig_skey.as_ref())?;
+		skey_f.write_all(&kem_skey.as_ref())?;
 		self.public_keypair = Some((sig_pkey, kem_pkey));
 		self.secret_keypair = Some((sig_skey, kem_skey));
 		Ok(())
