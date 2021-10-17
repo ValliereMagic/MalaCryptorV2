@@ -1,14 +1,13 @@
 mod enc_algos_in_use;
 mod file_asymmetric_encryption;
 mod file_symmetric_encryption;
-mod key_derivation;
 mod global_constants;
-mod key_file;
+mod key_derivation;
 mod key_file_v3;
 
 use clap::{App, AppSettings, SubCommand};
 use file_symmetric_encryption::*;
-use key_file::*;
+use key_file_v3::*;
 use oqs;
 use rpassword::prompt_password_stdout;
 use sodiumoxide;
@@ -178,9 +177,18 @@ fn main() -> Result<()> {
 						return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
 					}
 					match m.chars().next().unwrap() {
-						'q' => quantum::gen(public_key, secret_key)?,
-						'c' => classical::gen(public_key, secret_key)?,
-						'h' => hybrid::gen(public_key, secret_key)?,
+						'q' => {
+							let q = quantum::QuantumKeyQuad::new();
+							q.gen(public_key, secret_key)?
+						}
+						'c' => {
+							let c = classical::ClassicalKeyQuad::new();
+							c.gen(public_key, secret_key)?
+						}
+						'h' => {
+							let h = hybrid::HybridKeyQuad::new();
+							h.gen(public_key, secret_key)?
+						}
 						_ => {
 							return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
 						}
