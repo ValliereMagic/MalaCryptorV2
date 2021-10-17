@@ -13,10 +13,10 @@ use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
 
-pub trait KeyQuad<A, B, C, D> {
-	fn gen(&mut self, pkey_path: &str, skey_path: &str) -> Result<()>;
-	fn get_pub(&mut self, pkey_path: &str) -> Result<&(A, B)>;
-	fn get_sec(&mut self, skey_path: &str) -> Result<&(C, D)>;
+pub trait KeyQuad<'a, A, B, C, D> {
+	fn gen(&'a mut self, pkey_path: &str, skey_path: &str) -> Result<()>;
+	fn get_pub(&'a mut self, pkey_path: &str) -> Result<&'a (A, B)>;
+	fn get_sec(&'a mut self, skey_path: &str) -> Result<&'a (C, D)>;
 }
 
 trait HybridQuad<A, B, C, D> {
@@ -27,21 +27,21 @@ trait HybridQuad<A, B, C, D> {
 
 pub mod hybrid {
 	use super::*;
-	pub struct HybridKeyQuad<'a, 'b> {
+	pub struct HybridKeyQuad<'a> {
 		quantum_quad: quantum::QuantumKeyQuad,
 		classical_quad: classical::ClassicalKeyQuad,
 		pub_keyquad: Option<(
 			&'a quantum::QuantumPKeyPair,
-			&'b classical::ClassicalPKeyPair,
+			&'a classical::ClassicalPKeyPair,
 		)>,
 		sec_keyquad: Option<(
 			&'a quantum::QuantumSKeyPair,
-			&'b classical::ClassicalSKeyPair,
+			&'a classical::ClassicalSKeyPair,
 		)>,
 	}
 
-	impl<'a, 'b> HybridKeyQuad<'a, 'b> {
-		pub fn new() -> HybridKeyQuad<'a, 'b> {
+	impl<'a> HybridKeyQuad<'a> {
+		pub fn new() -> HybridKeyQuad<'a> {
 			HybridKeyQuad {
 				quantum_quad: quantum::QuantumKeyQuad::new(),
 				classical_quad: classical::ClassicalKeyQuad::new(),
@@ -51,13 +51,14 @@ pub mod hybrid {
 		}
 	}
 
-	impl<'a, 'b>
+	impl<'a>
 		KeyQuad<
+			'a,
 			&'a quantum::QuantumPKeyPair,
-			&'b classical::ClassicalPKeyPair,
+			&'a classical::ClassicalPKeyPair,
 			&'a quantum::QuantumSKeyPair,
-			&'b classical::ClassicalSKeyPair,
-		> for HybridKeyQuad<'a, 'b>
+			&'a classical::ClassicalSKeyPair,
+		> for HybridKeyQuad<'a>
 	{
 		fn gen(&mut self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			self.quantum_quad.gen(pkey_path, skey_path)?;
@@ -68,9 +69,12 @@ pub mod hybrid {
 			HybridQuad::gen(&mut self.classical_quad, &mut pkey_f, &mut skey_f)
 		}
 		fn get_pub(
-			&mut self,
+			&'a mut self,
 			pkey_path: &str,
-		) -> Result<&(&'a quantum::QuantumPKeyPair, &'b classical::ClassicalPKeyPair)> {
+		) -> Result<&(
+			&'a quantum::QuantumPKeyPair,
+			&'a classical::ClassicalPKeyPair,
+		)> {
 			let q = self.quantum_quad.get_pub(pkey_path)?;
 			let mut pkey_f = File::open(pkey_path)?;
 			let c = HybridQuad::get_pub(
@@ -82,9 +86,13 @@ pub mod hybrid {
 			Ok(self.pub_keyquad.as_ref().unwrap())
 		}
 		fn get_sec(
-			&mut self,
+			&'a mut self,
 			skey_path: &str,
-		) -> Result<&(&'a quantum::QuantumSKeyPair, &'b classical::ClassicalSKeyPair)> {
+		) -> Result<&(
+			&'a quantum::QuantumSKeyPair,
+			&'a classical::ClassicalSKeyPair,
+		)> {
+			unimplemented!();
 		}
 	}
 }
@@ -120,7 +128,9 @@ pub mod quantum {
 		}
 	}
 
-	impl KeyQuad<sig::PublicKey, kem::PublicKey, sig::SecretKey, kem::SecretKey> for QuantumKeyQuad {
+	impl<'a> KeyQuad<'a, sig::PublicKey, kem::PublicKey, sig::SecretKey, kem::SecretKey>
+		for QuantumKeyQuad
+	{
 		fn gen(&mut self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
 			let (sig_pkey, sig_skey) = self
@@ -229,7 +239,9 @@ mod _classical {
 		}
 	}
 
-	impl KeyQuad<sign::PublicKey, kx::PublicKey, sign::SecretKey, kx::SecretKey> for ClassicalKeyQuad {
+	impl<'a> KeyQuad<'a, sign::PublicKey, kx::PublicKey, sign::SecretKey, kx::SecretKey>
+		for ClassicalKeyQuad
+	{
 		fn gen(&mut self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
 			HybridQuad::gen(self, &mut pkey_f, &mut skey_f)
