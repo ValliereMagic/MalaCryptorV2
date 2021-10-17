@@ -1,14 +1,35 @@
 use crate::enc_algos_in_use;
 use oqs::kem;
 use oqs::sig;
-use sodiumoxide::crypto::{kx, sign};
+use sodiumoxide::crypto::{
+	kx, secretstream::gen_key, secretstream::Key, secretstream::KEYBYTES, sign,
+};
 use std::cell::UnsafeCell;
-use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
+
+pub mod symmetric {
+	use super::*;
+	// Generates a secretstream::KEYBYTES sized key_file and writes it into a
+	// new file at the key_file_path specified.
+	pub fn gen(key_file_path: &str) -> Result<()> {
+		let mut key_file = File::create(&key_file_path)?;
+		let key = gen_key();
+		key_file.write_all(&key.0)?;
+		Ok(())
+	}
+	// Retrieves the first secretstream::KEYBYTES of the file passed at
+	// key_file_path, and returns them as a Key fit for SodiumOxide.
+	pub fn get(key_file_path: &str) -> Result<Key> {
+		let mut key_file = File::open(&key_file_path)?;
+		let mut key = Key([0u8; KEYBYTES]);
+		key_file.read_exact(&mut key.0)?;
+		Ok(key)
+	}
+}
 
 pub trait KeyQuad<'a, A, B, C, D> {
 	fn gen(&'a self, pkey_path: &str, skey_path: &str) -> Result<()>;
@@ -118,6 +139,7 @@ pub mod hybrid {
 	}
 	#[test]
 	fn test_hybrid() {
+		use std::fs;
 		let c = HybridKeyQuad::new();
 		KeyQuad::gen(&c, "/tmp/pub_key_h_test", "/tmp/sec_key_h_test").unwrap();
 		// Pub
@@ -245,6 +267,7 @@ pub mod quantum {
 
 	#[test]
 	fn test_quantum() {
+		use std::fs;
 		let q = QuantumKeyQuad::new();
 		q.gen("/tmp/pub_key_q_test", "/tmp/sec_key_q_test").unwrap();
 		let sig = enc_algos_in_use::get_q_sig_algo();
@@ -362,6 +385,7 @@ mod _classical {
 	}
 	#[test]
 	fn test_classical() {
+		use std::fs;
 		let c = ClassicalKeyQuad::new();
 		KeyQuad::gen(&c, "/tmp/pub_key_c_test", "/tmp/sec_key_c_test").unwrap();
 		// Pub
