@@ -19,8 +19,8 @@ pub fn encrypt_quantum(
 	file_out_path: &str,
 ) -> Result<()> {
 	let dest = quantum::QuantumKeyQuad::new();
-	let local = quantum::QuantumKeyQuad::new();
 	let dest_pkey = dest.get_pub(dest_pkey_path)?;
+	let local = quantum::QuantumKeyQuad::new();
 	let skey = local.get_sec(skey_path)?;
 	let pkey = local.get_pub(pkey_path)?;
 	let kem = get_q_kem_algo();
