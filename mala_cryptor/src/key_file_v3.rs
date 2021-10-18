@@ -31,12 +31,18 @@ pub mod symmetric {
 	}
 }
 
+// Defines the public interface for generating and retrieving Key Sets public
+// keys are pairs of signing and kem keys, and likewise for their secret
+// counterparts.
 pub trait KeyQuad<'a, A, B, C, D> {
 	fn gen(&'a self, pkey_path: &str, skey_path: &str) -> Result<()>;
 	fn get_pub(&'a self, pkey_path: &str) -> Result<&'a (A, B)>;
 	fn get_sec(&'a self, skey_path: &str) -> Result<&'a (C, D)>;
 }
 
+// Defines the private interface for generating a hybrid key; where a file will
+// have multiple keypairs within it. Hence the get functions allow for a byte
+// offset into the file where the keypair should begin.
 trait HybridQuad<A, B, C, D> {
 	fn gen(&self, pkey: &mut File, skey: &mut File) -> Result<()>;
 	fn get_pub(&self, pkey: &mut File, offset: u64) -> Result<&(A, B)>;
@@ -45,6 +51,11 @@ trait HybridQuad<A, B, C, D> {
 
 pub mod hybrid {
 	use super::*;
+	// A hybrid KeyQuad is composed of the 2 quads making up the composure:
+	// [quantum and classical]. It also caches the read result from them as
+	// references once they have been acquired. Because of this, only 1 key can
+	// be loaded. On subsequent calls, to get_pub and get_sec the previously
+	// read keys will be returned.
 	pub struct HybridKeyQuad<'a> {
 		quantum_quad: quantum::QuantumKeyQuad,
 		classical_quad: classical::ClassicalKeyQuad,
@@ -82,6 +93,8 @@ pub mod hybrid {
 			&'a classical::ClassicalSKeyPair,
 		> for HybridKeyQuad<'a>
 	{
+		// Appropriately generates both composite keys, and puts them in the
+		// same file. Using an offset for the second key-set.
 		fn gen(&'a self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			self.quantum_quad.gen(pkey_path, skey_path)?;
 			let (mut pkey_f, mut skey_f) = (
@@ -90,6 +103,8 @@ pub mod hybrid {
 			);
 			HybridQuad::gen(&self.classical_quad, &mut pkey_f, &mut skey_f)
 		}
+		// Appropriately retrieves both composite keys, and caches the result
+		// within self. Using an offset to acquire the second key
 		fn get_pub(
 			&'a self,
 			pkey_path: &str,
@@ -113,6 +128,7 @@ pub mod hybrid {
 				}
 			}
 		}
+		// Same as pub, different key types
 		fn get_sec(
 			&'a self,
 			skey_path: &str,
@@ -195,6 +211,7 @@ pub mod quantum {
 	impl<'a> KeyQuad<'a, sig::PublicKey, kem::PublicKey, sig::SecretKey, kem::SecretKey>
 		for QuantumKeyQuad
 	{
+		// Create keypairs, cache, and store in files at the passed paths
 		fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
 			let (sig_pkey, sig_skey) = self
@@ -215,10 +232,12 @@ pub mod quantum {
 			}
 			Ok(())
 		}
+		// If this hasn't been previously generated, read in the keypair, cache
+		// it for future use, and then only return the stored result.
 		fn get_pub(&self, pkey_path: &str) -> Result<&(sig::PublicKey, kem::PublicKey)> {
-			let mut pkey_f = File::open(pkey_path)?;
 			unsafe {
 				if let None = *self.public_keypair.get() {
+					let mut pkey_f = File::open(pkey_path)?;
 					let mut sig_pkey_buff = vec![0u8; self.sig_alg.length_public_key()];
 					let mut kem_pkey_buff = vec![0u8; self.kem_alg.length_public_key()];
 					pkey_f.read_exact(&mut sig_pkey_buff)?;
@@ -239,10 +258,11 @@ pub mod quantum {
 				}
 			}
 		}
+		// See get_pub comments
 		fn get_sec(&self, skey_path: &str) -> Result<&(sig::SecretKey, kem::SecretKey)> {
-			let mut skey_f = File::open(skey_path)?;
 			unsafe {
 				if let None = *self.secret_keypair.get() {
+					let mut skey_f = File::open(skey_path)?;
 					let mut sig_skey_buff = vec![0u8; self.sig_alg.length_secret_key()];
 					let mut kem_skey_buff = vec![0u8; self.kem_alg.length_secret_key()];
 					skey_f.read_exact(&mut sig_skey_buff)?;
@@ -308,7 +328,8 @@ mod _classical {
 			}
 		}
 	}
-
+	// Can get away with only implementing hybrid, and then calling them from
+	// KeyQuad with an offset of 0.
 	impl<'a> KeyQuad<'a, sign::PublicKey, kx::PublicKey, sign::SecretKey, kx::SecretKey>
 		for ClassicalKeyQuad
 	{
@@ -329,6 +350,8 @@ mod _classical {
 	impl HybridQuad<sign::PublicKey, kx::PublicKey, sign::SecretKey, kx::SecretKey>
 		for ClassicalKeyQuad
 	{
+		// Must play well by taking a file reference. It could be appending to
+		// an existing file.
 		fn gen(&self, pkey: &mut File, skey: &mut File) -> Result<()> {
 			let (sig_pkey, sig_skey) = sign::gen_keypair();
 			let (kem_pkey, kem_skey) = kx::gen_keypair();
@@ -342,6 +365,7 @@ mod _classical {
 			}
 			Ok(())
 		}
+		// Seek to the offset, read in, cache and return. If cached; just return
 		fn get_pub(
 			&self,
 			pkey: &mut File,
@@ -362,6 +386,7 @@ mod _classical {
 				}
 			}
 		}
+		// See get_pub comments
 		fn get_sec(
 			&self,
 			skey: &mut File,
