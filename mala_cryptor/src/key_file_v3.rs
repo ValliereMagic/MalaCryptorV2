@@ -34,6 +34,11 @@ pub mod symmetric {
 // Defines the public interface for generating and retrieving Key Sets public
 // keys are pairs of signing and kem keys, and likewise for their secret
 // counterparts.
+// Where:
+// A: Signature Public Key
+// B: KEM Public Key
+// C: Signature Secret Key
+// D: KEM Secret Key
 pub trait KeyQuad<'a, A, B, C, D> {
 	fn gen(&'a self, pkey_path: &str, skey_path: &str) -> Result<()>;
 	fn get_pub(&'a self, pkey_path: &str) -> Result<&'a (A, B)>;
@@ -43,10 +48,15 @@ pub trait KeyQuad<'a, A, B, C, D> {
 // Defines the private interface for generating a hybrid key; where a file will
 // have multiple keypairs within it. Hence the get functions allow for a byte
 // offset into the file where the keypair should begin.
+// Where:
+// A: Signature Public Key
+// B: KEM Public Key
+// C: Signature Secret Key
+// D: KEM Secret Key
 trait HybridQuad<A, B, C, D> {
-	fn gen(&self, pkey: &mut File, skey: &mut File) -> Result<()>;
-	fn get_pub(&self, pkey: &mut File, offset: u64) -> Result<&(A, B)>;
-	fn get_sec(&self, skey: &mut File, offset: u64) -> Result<&(C, D)>;
+	fn hyb_gen(&self, pkey: &mut File, skey: &mut File) -> Result<()>;
+	fn hyb_pub(&self, pkey: &mut File, offset: u64) -> Result<&(A, B)>;
+	fn hyb_sec(&self, skey: &mut File, offset: u64) -> Result<&(C, D)>;
 }
 
 pub mod hybrid {
@@ -101,7 +111,7 @@ pub mod hybrid {
 				OpenOptions::new().append(true).open(pkey_path)?,
 				OpenOptions::new().append(true).open(skey_path)?,
 			);
-			HybridQuad::gen(&self.classical_quad, &mut pkey_f, &mut skey_f)
+			self.classical_quad.hyb_gen(&mut pkey_f, &mut skey_f)
 		}
 		// Appropriately retrieves both composite keys, and caches the result
 		// within self. Using an offset to acquire the second key
@@ -116,11 +126,9 @@ pub mod hybrid {
 				if let None = *self.pub_keyquad.get() {
 					let q = self.quantum_quad.get_pub(pkey_path)?;
 					let mut pkey_f = File::open(pkey_path)?;
-					let c = HybridQuad::get_pub(
-						&self.classical_quad,
-						&mut pkey_f,
-						self.quantum_quad.pub_key_size(),
-					)?;
+					let c = self
+						.classical_quad
+						.hyb_pub(&mut pkey_f, self.quantum_quad.pub_key_size())?;
 					*self.pub_keyquad.get() = Some((q, c));
 					Ok((*self.pub_keyquad.get()).as_ref().unwrap())
 				} else {
@@ -140,11 +148,9 @@ pub mod hybrid {
 				if let None = *self.sec_keyquad.get() {
 					let q = self.quantum_quad.get_sec(skey_path)?;
 					let mut pkey_f = File::open(skey_path)?;
-					let c = HybridQuad::get_sec(
-						&self.classical_quad,
-						&mut pkey_f,
-						self.quantum_quad.sec_key_size(),
-					)?;
+					let c = self
+						.classical_quad
+						.hyb_sec(&mut pkey_f, self.quantum_quad.sec_key_size())?;
 					*self.sec_keyquad.get() = Some((q, c));
 					Ok((*self.sec_keyquad.get()).as_ref().unwrap())
 				} else {
@@ -157,9 +163,9 @@ pub mod hybrid {
 	fn test_hybrid() {
 		use std::fs;
 		let c = HybridKeyQuad::new();
-		KeyQuad::gen(&c, "/tmp/pub_key_h_test", "/tmp/sec_key_h_test").unwrap();
+		c.gen("/tmp/pub_key_h_test", "/tmp/sec_key_h_test").unwrap();
 		// Pub
-		let publ = KeyQuad::get_pub(&c, "/tmp/pub_key_h_test").unwrap();
+		let publ = c.get_pub("/tmp/pub_key_h_test").unwrap();
 		let sig = enc_algos_in_use::get_q_sig_algo();
 		let kem = enc_algos_in_use::get_q_kem_algo();
 		assert_eq!(publ.0 .0.as_ref().len(), sig.length_public_key());
@@ -167,7 +173,7 @@ pub mod hybrid {
 		assert_eq!(publ.1 .0.as_ref().len(), sign::PUBLICKEYBYTES);
 		assert_eq!(publ.1 .1.as_ref().len(), kx::PUBLICKEYBYTES);
 		// Sec
-		let sec = KeyQuad::get_sec(&c, "/tmp/sec_key_h_test").unwrap();
+		let sec = c.get_sec("/tmp/sec_key_h_test").unwrap();
 		assert_eq!(sec.0 .0.as_ref().len(), sig.length_secret_key());
 		assert_eq!(sec.0 .1.as_ref().len(), kem.length_secret_key());
 		assert_eq!(sec.1 .0.as_ref().len(), sign::SECRETKEYBYTES);
@@ -335,15 +341,15 @@ mod _classical {
 	{
 		fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
 			let (mut pkey_f, mut skey_f) = (File::create(pkey_path)?, File::create(skey_path)?);
-			HybridQuad::gen(self, &mut pkey_f, &mut skey_f)
+			HybridQuad::hyb_gen(self, &mut pkey_f, &mut skey_f)
 		}
 		fn get_pub(&self, pkey_path: &str) -> Result<&(sign::PublicKey, kx::PublicKey)> {
 			let mut pkey_f = File::open(pkey_path)?;
-			HybridQuad::get_pub(self, &mut pkey_f, 0)
+			HybridQuad::hyb_pub(self, &mut pkey_f, 0)
 		}
 		fn get_sec(&self, skey_path: &str) -> Result<&(sign::SecretKey, kx::SecretKey)> {
 			let mut skey_f = File::open(skey_path)?;
-			HybridQuad::get_sec(self, &mut skey_f, 0)
+			HybridQuad::hyb_sec(self, &mut skey_f, 0)
 		}
 	}
 
@@ -352,7 +358,7 @@ mod _classical {
 	{
 		// Must play well by taking a file reference. It could be appending to
 		// an existing file.
-		fn gen(&self, pkey: &mut File, skey: &mut File) -> Result<()> {
+		fn hyb_gen(&self, pkey: &mut File, skey: &mut File) -> Result<()> {
 			let (sig_pkey, sig_skey) = sign::gen_keypair();
 			let (kem_pkey, kem_skey) = kx::gen_keypair();
 			pkey.write_all(&sig_pkey.0)?;
@@ -366,7 +372,7 @@ mod _classical {
 			Ok(())
 		}
 		// Seek to the offset, read in, cache and return. If cached; just return
-		fn get_pub(
+		fn hyb_pub(
 			&self,
 			pkey: &mut File,
 			offset: u64,
@@ -387,7 +393,7 @@ mod _classical {
 			}
 		}
 		// See get_pub comments
-		fn get_sec(
+		fn hyb_sec(
 			&self,
 			skey: &mut File,
 			offset: u64,
@@ -412,13 +418,13 @@ mod _classical {
 	fn test_classical() {
 		use std::fs;
 		let c = ClassicalKeyQuad::new();
-		KeyQuad::gen(&c, "/tmp/pub_key_c_test", "/tmp/sec_key_c_test").unwrap();
+		c.gen("/tmp/pub_key_c_test", "/tmp/sec_key_c_test").unwrap();
 		// Pub
-		let publ = KeyQuad::get_pub(&c, "/tmp/pub_key_c_test").unwrap();
+		let publ = c.get_pub("/tmp/pub_key_c_test").unwrap();
 		assert_eq!(publ.0.as_ref().len(), sign::PUBLICKEYBYTES);
 		assert_eq!(publ.1.as_ref().len(), kx::PUBLICKEYBYTES);
 		// Sec
-		let sec = KeyQuad::get_sec(&c, "/tmp/sec_key_c_test").unwrap();
+		let sec = c.get_sec("/tmp/sec_key_c_test").unwrap();
 		assert_eq!(sec.0.as_ref().len(), sign::SECRETKEYBYTES);
 		assert_eq!(sec.1.as_ref().len(), kx::SECRETKEYBYTES);
 		fs::remove_file("/tmp/pub_key_c_test").unwrap();
