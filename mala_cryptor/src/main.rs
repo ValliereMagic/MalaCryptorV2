@@ -6,7 +6,6 @@ mod key_derivation;
 mod key_file;
 use clap::{App, AppSettings, SubCommand};
 use file_symmetric_encryption::*;
-use key_file::key_file::*;
 use key_file::*;
 use oqs;
 use rpassword::prompt_password_stdout;

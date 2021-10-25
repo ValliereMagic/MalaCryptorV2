@@ -1,7 +1,7 @@
 pub mod classical;
 pub mod hybrid;
-pub mod key_file;
+mod key_file;
 pub mod quantum;
 pub mod symmetric;
-
+pub use key_file::{KeyPair, KeyQuad};
 pub use {classical::*, hybrid::*, quantum::*};
