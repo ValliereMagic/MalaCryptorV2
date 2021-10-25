@@ -1,7 +1,8 @@
 use crate::enc_algos_in_use::*;
 use crate::file_symmetric_encryption::*;
 use crate::global_constants::*;
-use crate::key_file_v3::*;
+use crate::key_file::key_file::*;
+use crate::key_file::*;
 use oqs::kem;
 use oqs::sig;
 use sodiumoxide::crypto::generichash::{State, DIGEST_MAX};
@@ -18,11 +19,10 @@ pub fn encrypt_quantum(
 	file_in_path: &str,
 	file_out_path: &str,
 ) -> Result<()> {
-	let dest = quantum::QuantumKeyQuad::new();
-	let dest_pkey = dest.get_pub(dest_pkey_path)?;
-	let local = quantum::QuantumKeyQuad::new();
-	let skey = local.get_sec(skey_path)?;
-	let pkey = local.get_pub(pkey_path)?;
+	let q = quantum::QuantumKeyQuad::new();
+	let dest_pkey = q.get_pub(dest_pkey_path)?;
+	let skey = q.get_sec(skey_path)?;
+	let pkey = q.get_pub(pkey_path)?;
 	let kem = get_q_kem_algo();
 	let (ct, ss) = kem.encapsulate(&dest_pkey.1).unwrap();
 	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
