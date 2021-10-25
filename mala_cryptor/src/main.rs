@@ -3,12 +3,11 @@ mod file_asymmetric_encryption;
 mod file_symmetric_encryption;
 mod global_constants;
 mod key_derivation;
-mod key_file_v3;
-mod key_file_v4;
-
+mod key_file;
 use clap::{App, AppSettings, SubCommand};
 use file_symmetric_encryption::*;
-use key_file_v3::*;
+use key_file::key_file::*;
+use key_file::*;
 use oqs;
 use rpassword::prompt_password_stdout;
 use sodiumoxide;
