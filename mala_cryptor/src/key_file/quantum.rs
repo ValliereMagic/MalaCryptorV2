@@ -1,25 +1,25 @@
-use super::key_file::*;
+use super::key_pair::*;
+use super::key_quad::*;
+use super::signature_keyexchange::*;
 use crate::enc_algos_in_use;
 use oqs::kem;
 use oqs::sig;
-use std::io::Result;
 use std::rc::Rc;
-struct Signature {
+pub struct QSignature {
+	// Base
+	signature: Signature,
 	sig: sig::Sig,
-	pub_offset: u64,
-	sec_offset: u64,
 }
-impl Signature {
-	fn new(pub_offset: u64, sec_offset: u64) -> Signature {
-		Signature {
+impl QSignature {
+	fn new(pub_offset: u64, sec_offset: u64) -> QSignature {
+		QSignature {
+			signature: Signature::new(pub_offset, sec_offset),
 			sig: enc_algos_in_use::get_q_sig_algo(),
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
 		}
 	}
 }
-// Adapt Signature to the Keypair trait
-impl KeyPair<sig::PublicKey, sig::SecretKey> for Signature {
+// Adapt QSignature to the Keypair trait
+impl KeyPair<sig::PublicKey, sig::SecretKey> for Rc<QSignature> {
 	fn gen_keypair(&self) -> (sig::PublicKey, sig::SecretKey) {
 		self.sig
 			.keypair()
@@ -44,10 +44,10 @@ impl KeyPair<sig::PublicKey, sig::SecretKey> for Signature {
 			.to_owned()
 	}
 	fn pub_offset(&self) -> u64 {
-		self.pub_offset
+		self.signature.pub_offset()
 	}
 	fn sec_offset(&self) -> u64 {
-		self.sec_offset
+		self.signature.sec_offset()
 	}
 	fn pub_key_len(&self) -> usize {
 		self.sig.length_public_key()
@@ -57,24 +57,23 @@ impl KeyPair<sig::PublicKey, sig::SecretKey> for Signature {
 	}
 }
 
-struct KeyExchange {
-	sig: Rc<Signature>,
+pub struct QKeyExchange {
+	// Base
+	key_exchange: KeyExchange,
+	sig: Rc<QSignature>,
 	kem: kem::Kem,
-	pub_offset: u64,
-	sec_offset: u64,
 }
-impl KeyExchange {
-	fn new(sig: Rc<Signature>, pub_offset: u64, sec_offset: u64) -> KeyExchange {
-		KeyExchange {
+impl QKeyExchange {
+	fn new(sig: Rc<QSignature>, pub_offset: u64, sec_offset: u64) -> QKeyExchange {
+		QKeyExchange {
+			key_exchange: KeyExchange::new(pub_offset, sec_offset),
 			sig: sig,
 			kem: enc_algos_in_use::get_q_kem_algo(),
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
 		}
 	}
 }
 
-impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for KeyExchange {
+impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
 	fn gen_keypair(&self) -> (kem::PublicKey, kem::SecretKey) {
 		self.kem
 			.keypair()
@@ -99,10 +98,10 @@ impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for KeyExchange {
 			.to_owned()
 	}
 	fn pub_offset(&self) -> u64 {
-		self.sig.pub_key_len() as u64 + self.pub_offset
+		self.sig.pub_key_len() as u64 + self.key_exchange.pub_offset()
 	}
 	fn sec_offset(&self) -> u64 {
-		self.sig.sec_key_len() as u64 + self.sec_offset
+		self.sig.sec_key_len() as u64 + self.key_exchange.sec_offset()
 	}
 	fn pub_key_len(&self) -> usize {
 		self.kem.length_public_key()
@@ -112,62 +111,25 @@ impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for KeyExchange {
 	}
 }
 
-pub struct QuantumKeyQuad {
-	sig: Rc<Signature>,
-	kem: KeyExchange,
-}
+pub type QuantumKeyQuad = BaseKeyQuad<
+	sig::PublicKey,
+	sig::SecretKey,
+	kem::PublicKey,
+	kem::SecretKey,
+	Rc<QSignature>,
+	QKeyExchange,
+>;
 
 impl QuantumKeyQuad {
 	pub fn new() -> QuantumKeyQuad {
-		let sig = Rc::new(Signature::new(0, 0));
+		let sig = Rc::new(QSignature::new(0, 0));
 		let sig_2 = Rc::clone(&sig);
-		QuantumKeyQuad {
-			sig: sig,
-			kem: KeyExchange::new(sig_2, 0, 0),
-		}
+		BaseKeyQuad::_new(sig, QKeyExchange::new(sig_2, 0, 0))
 	}
 	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> QuantumKeyQuad {
-		let sig = Rc::new(Signature::new(pub_offset, sec_offset));
+		let sig = Rc::new(QSignature::new(pub_offset, sec_offset));
 		let sig_2 = Rc::clone(&sig);
-		QuantumKeyQuad {
-			sig: sig,
-			kem: KeyExchange::new(sig_2, pub_offset, sec_offset),
-		}
-	}
-}
-
-impl KeyQuad<sig::PublicKey, kem::PublicKey, sig::SecretKey, kem::SecretKey> for QuantumKeyQuad {
-	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
-		gen(&(*self.sig), pkey_path, skey_path)?;
-		gen(&self.kem, pkey_path, skey_path)
-	}
-	fn get_pub(&self, pkey_path: &str) -> Result<(sig::PublicKey, kem::PublicKey)> {
-		let sig = match get(KeyVariant::Public(Zst::new()), &(*self.sig), pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Public(Zst::new()), &self.kem, pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	fn get_sec(&self, skey_path: &str) -> Result<(sig::SecretKey, kem::SecretKey)> {
-		let sig = match get(KeyVariant::Secret(Zst::new()), &(*self.sig), skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Secret(Zst::new()), &self.kem, skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	fn total_pub_size_bytes(&self) -> usize {
-		self.kem.pub_key_len() + self.sig.pub_key_len()
-	}
-	fn total_sec_size_bytes(&self) -> usize {
-		self.kem.sec_key_len() + self.sig.sec_key_len()
+		BaseKeyQuad::_new(sig, QKeyExchange::new(sig_2, pub_offset, sec_offset))
 	}
 }
 

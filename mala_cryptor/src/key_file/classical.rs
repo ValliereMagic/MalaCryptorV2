@@ -1,20 +1,8 @@
-use super::key_file::*;
+use super::key_pair::*;
+use super::key_quad::*;
+use super::signature_keyexchange::*;
 use sodiumoxide::crypto::{kx, sign};
 use std::convert::TryInto;
-use std::io::Result;
-struct Signature {
-	pub_offset: u64,
-	sec_offset: u64,
-}
-
-impl Signature {
-	pub fn new(pub_offset: u64, sec_offset: u64) -> Signature {
-		Signature {
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
-		}
-	}
-}
 
 impl KeyPair<sign::PublicKey, sign::SecretKey> for Signature {
 	// Generate a public and private key A, and B.
@@ -45,11 +33,11 @@ impl KeyPair<sign::PublicKey, sign::SecretKey> for Signature {
 	}
 	// offset into the file to read / write a public key
 	fn pub_offset(&self) -> u64 {
-		self.pub_offset
+		self.pub_offset()
 	}
 	// offset into the file to read / write a secret key
 	fn sec_offset(&self) -> u64 {
-		self.sec_offset
+		self.sec_offset()
 	}
 	// The length in bytes of a public key
 	fn pub_key_len(&self) -> usize {
@@ -58,20 +46,6 @@ impl KeyPair<sign::PublicKey, sign::SecretKey> for Signature {
 	// The length in bytes of a secret key
 	fn sec_key_len(&self) -> usize {
 		sign::SECRETKEYBYTES
-	}
-}
-
-struct KeyExchange {
-	pub_offset: u64,
-	sec_offset: u64,
-}
-
-impl KeyExchange {
-	pub fn new(pub_offset: u64, sec_offset: u64) -> KeyExchange {
-		KeyExchange {
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
-		}
 	}
 }
 
@@ -104,11 +78,11 @@ impl KeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
 	}
 	// offset into the file to read / write a public key
 	fn pub_offset(&self) -> u64 {
-		self.pub_offset + sign::PUBLICKEYBYTES as u64
+		self.pub_offset() + sign::PUBLICKEYBYTES as u64
 	}
 	// offset into the file to read / write a secret key
 	fn sec_offset(&self) -> u64 {
-		self.sec_offset + sign::SECRETKEYBYTES as u64
+		self.sec_offset() + sign::SECRETKEYBYTES as u64
 	}
 	// The length in bytes of a public key
 	fn pub_key_len(&self) -> usize {
@@ -120,64 +94,24 @@ impl KeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
 	}
 }
 
-pub struct ClassicalKeyQuad {
-	sign: Signature,
-	kem: KeyExchange,
-}
+pub type ClassicalKeyQuad = BaseKeyQuad<
+	sign::PublicKey,
+	sign::SecretKey,
+	kx::PublicKey,
+	kx::SecretKey,
+	Signature,
+	KeyExchange,
+>;
 
 impl ClassicalKeyQuad {
 	pub fn new() -> ClassicalKeyQuad {
-		ClassicalKeyQuad {
-			sign: Signature::new(0, 0),
-			kem: KeyExchange::new(0, 0),
-		}
+		BaseKeyQuad::_new(Signature::new(0, 0), KeyExchange::new(0, 0))
 	}
 	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> ClassicalKeyQuad {
-		ClassicalKeyQuad {
-			sign: Signature::new(pub_offset, sec_offset),
-			kem: KeyExchange::new(pub_offset, sec_offset),
-		}
-	}
-}
-
-impl KeyQuad<sign::PublicKey, kx::PublicKey, sign::SecretKey, kx::SecretKey> for ClassicalKeyQuad {
-	// Generate a public and private keyquad composed of a signature public and
-	// secret pair as well as a key exchange public and secret pair
-	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
-		gen(&self.sign, pkey_path, skey_path)?;
-		gen(&self.kem, pkey_path, skey_path)
-	}
-	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(sign::PublicKey, kx::PublicKey)> {
-		let sig = match get(KeyVariant::Public(Zst::new()), &self.sign, pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Public(Zst::new()), &self.kem, pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	fn get_sec(&self, skey_path: &str) -> Result<(sign::SecretKey, kx::SecretKey)> {
-		let sig = match get(KeyVariant::Secret(Zst::new()), &self.sign, skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Secret(Zst::new()), &self.kem, skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	// The total size that the file will be for each of the key parts. This is
-	// used for composition key files where multiple different keypairs are
-	// stored in the same file.
-	fn total_pub_size_bytes(&self) -> usize {
-		sign::PUBLICKEYBYTES + kx::PUBLICKEYBYTES
-	}
-	fn total_sec_size_bytes(&self) -> usize {
-		sign::SECRETKEYBYTES + kx::SECRETKEYBYTES
+		BaseKeyQuad::_new(
+			Signature::new(pub_offset, sec_offset),
+			KeyExchange::new(pub_offset, sec_offset),
+		)
 	}
 }
 
