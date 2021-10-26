@@ -59,22 +59,22 @@ where
 	}
 	// Retrieve the public portion of the keypairs from the file paths passed
 	fn get_pub(&self, pkey_path: &str) -> Result<(A, C)> {
-		let sig = match get(KeyVariant::Public(Zst::new()), &self.sign, pkey_path)? {
+		let sig = match get(KeyVariant::Public(()), &self.sign, pkey_path)? {
 			KeyVariant::Public(p) => p,
 			_ => unreachable!(),
 		};
-		let kem = match get(KeyVariant::Public(Zst::new()), &self.kem, pkey_path)? {
+		let kem = match get(KeyVariant::Public(()), &self.kem, pkey_path)? {
 			KeyVariant::Public(p) => p,
 			_ => unreachable!(),
 		};
 		Ok((sig, kem))
 	}
 	fn get_sec(&self, skey_path: &str) -> Result<(B, D)> {
-		let sig = match get(KeyVariant::Secret(Zst::new()), &self.sign, skey_path)? {
+		let sig = match get(KeyVariant::Secret(()), &self.sign, skey_path)? {
 			KeyVariant::Secret(s) => s,
 			_ => unreachable!(),
 		};
-		let kem = match get(KeyVariant::Secret(Zst::new()), &self.kem, skey_path)? {
+		let kem = match get(KeyVariant::Secret(()), &self.kem, skey_path)? {
 			KeyVariant::Secret(s) => s,
 			_ => unreachable!(),
 		};
