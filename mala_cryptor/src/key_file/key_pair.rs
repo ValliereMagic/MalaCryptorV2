@@ -22,20 +22,6 @@ pub trait KeyPair<A, B> {
 	fn sec_key_len(&self) -> usize;
 }
 
-pub trait KeyQuad<A, B, C, D> {
-	// Generate a public and private keyquad composed of a signature public and
-	// secret pair as well as a key exchange public and secret pair
-	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
-	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(A, B)>;
-	fn get_sec(&self, skey_path: &str) -> Result<(C, D)>;
-	// The total size that the file will be for each of the key parts. This is
-	// used for composition key files where multiple different keypairs are
-	// stored in the same file.
-	fn total_pub_size_bytes(&self) -> usize;
-	fn total_sec_size_bytes(&self) -> usize;
-}
-
 // Generate a keypair and place their public and secret components into their
 // separate files as passed.
 pub fn gen<A, B, T>(pair: &T, pkey_path: &str, skey_path: &str) -> Result<()>

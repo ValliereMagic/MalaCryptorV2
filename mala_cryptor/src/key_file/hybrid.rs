@@ -1,4 +1,4 @@
-use super::key_file::*;
+use super::key_quad::*;
 use super::{classical, quantum};
 use oqs::kem;
 use oqs::sig;
