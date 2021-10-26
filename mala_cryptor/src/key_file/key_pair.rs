@@ -55,19 +55,10 @@ pub enum KeyVariant<A, B> {
 	Secret(B),
 }
 
-// Zero sized type for Key Variant. Allowing to create it without any extra size
-pub struct Zst;
-
-impl Zst {
-	pub fn new() -> Zst {
-		Zst {}
-	}
-}
-
 // Retrieve a public OR private key depending on the variant of KeyVariant
 // Passed; result is the same variant as the KeyVariant passed in.
 pub fn get<A, B, T>(
-	variant: KeyVariant<Zst, Zst>,
+	variant: KeyVariant<(), ()>,
 	pair: &T,
 	pkey_path: &str,
 ) -> Result<KeyVariant<A, B>>
