@@ -177,15 +177,15 @@ fn main() -> Result<()> {
 					}
 					match m.chars().next().unwrap() {
 						'q' => {
-							let q = quantum::QuantumKeyQuad::new();
+							let q = QuantumKeyQuad::new();
 							q.gen(public_key, secret_key)?
 						}
 						'c' => {
-							let c = classical::ClassicalKeyQuad::new();
+							let c = ClassicalKeyQuad::new();
 							c.gen(public_key, secret_key)?
 						}
 						'h' => {
-							let h = hybrid::HybridKeyQuad::new();
+							let h = HybridKeyQuad::new();
 							h.gen(public_key, secret_key)?
 						}
 						_ => {

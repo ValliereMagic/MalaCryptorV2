@@ -2,7 +2,16 @@ use super::key_pair::*;
 use std::io::Result;
 use std::marker::PhantomData;
 
-pub trait KeyQuad<A, B, C, D> {
+// Generic functions representing the set of 2 KeyPairs used for asymmetric
+// encryption in mala_cryptor `KeyQuad`; which are a Signature Pair, and
+// KeyExchange pair. The Interface allows specialization of KeyQuads with
+// concrete types, as well as reducing a lot of code use.
+
+// It was designed to allow different algorithms to be used in mala_cryptor in
+// the future with very little code change. [re-implementing KeyPair for each of
+// them]
+
+pub trait IKeyQuad<A, B, C, D> {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair
 	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
@@ -16,10 +25,10 @@ pub trait KeyQuad<A, B, C, D> {
 	fn total_sec_size_bytes(&self) -> usize;
 }
 
-pub struct BaseKeyQuad<A, B, C, D, E, F>
+pub struct KeyQuad<A, B, C, D, E, F>
 where
-	E: KeyPair<A, B>,
-	F: KeyPair<C, D>,
+	E: IKeyPair<A, B>,
+	F: IKeyPair<C, D>,
 {
 	sign: E,
 	kem: F,
@@ -29,13 +38,13 @@ where
 	phantom_d: PhantomData<D>,
 }
 
-impl<A, B, C, D, E, F> BaseKeyQuad<A, B, C, D, E, F>
+impl<A, B, C, D, E, F> KeyQuad<A, B, C, D, E, F>
 where
-	E: KeyPair<A, B>,
-	F: KeyPair<C, D>,
+	E: IKeyPair<A, B>,
+	F: IKeyPair<C, D>,
 {
-	pub fn _new(sign: E, kem: F) -> BaseKeyQuad<A, B, C, D, E, F> {
-		BaseKeyQuad {
+	pub fn _new(sign: E, kem: F) -> KeyQuad<A, B, C, D, E, F> {
+		KeyQuad {
 			sign: sign,
 			kem: kem,
 			phantom_a: PhantomData,
@@ -46,10 +55,10 @@ where
 	}
 }
 
-impl<A, B, C, D, E, F> KeyQuad<A, C, B, D> for BaseKeyQuad<A, B, C, D, E, F>
+impl<A, B, C, D, E, F> IKeyQuad<A, C, B, D> for KeyQuad<A, B, C, D, E, F>
 where
-	E: KeyPair<A, B>,
-	F: KeyPair<C, D>,
+	E: IKeyPair<A, B>,
+	F: IKeyPair<C, D>,
 {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair

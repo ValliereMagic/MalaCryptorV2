@@ -1,10 +1,11 @@
-use super::key_pair::*;
-use super::key_quad::*;
-use super::signature_keyexchange::*;
+use super::base::*;
 use crate::enc_algos_in_use;
 use oqs::kem;
 use oqs::sig;
 use std::rc::Rc;
+
+// Quantum KeyPair using liboqs via liboqs-rust.
+
 pub struct QSignature {
 	// Base
 	signature: Signature,
@@ -19,7 +20,7 @@ impl QSignature {
 	}
 }
 // Adapt QSignature to the Keypair trait
-impl KeyPair<sig::PublicKey, sig::SecretKey> for Rc<QSignature> {
+impl IKeyPair<sig::PublicKey, sig::SecretKey> for Rc<QSignature> {
 	fn gen_keypair(&self) -> (sig::PublicKey, sig::SecretKey) {
 		self.sig
 			.keypair()
@@ -73,7 +74,7 @@ impl QKeyExchange {
 	}
 }
 
-impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
+impl<'a> IKeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
 	fn gen_keypair(&self) -> (kem::PublicKey, kem::SecretKey) {
 		self.kem
 			.keypair()
@@ -111,7 +112,7 @@ impl<'a> KeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
 	}
 }
 
-pub type QuantumKeyQuad = BaseKeyQuad<
+pub type QuantumKeyQuad = KeyQuad<
 	sig::PublicKey,
 	sig::SecretKey,
 	kem::PublicKey,
@@ -124,12 +125,12 @@ impl QuantumKeyQuad {
 	pub fn new() -> QuantumKeyQuad {
 		let sig = Rc::new(QSignature::new(0, 0));
 		let sig_2 = Rc::clone(&sig);
-		BaseKeyQuad::_new(sig, QKeyExchange::new(sig_2, 0, 0))
+		KeyQuad::_new(sig, QKeyExchange::new(sig_2, 0, 0))
 	}
 	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> QuantumKeyQuad {
 		let sig = Rc::new(QSignature::new(pub_offset, sec_offset));
 		let sig_2 = Rc::clone(&sig);
-		BaseKeyQuad::_new(sig, QKeyExchange::new(sig_2, pub_offset, sec_offset))
+		KeyQuad::_new(sig, QKeyExchange::new(sig_2, pub_offset, sec_offset))
 	}
 }
 

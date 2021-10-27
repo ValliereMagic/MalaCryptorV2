@@ -3,7 +3,10 @@ use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
 
-pub trait KeyPair<A, B> {
+// Generic functions as well as the interface needed to call them. These
+// functions allow the generation, and pulling of keypairs from files.
+
+pub trait IKeyPair<A, B> {
 	// Generate a public and private key A, and B.
 	fn gen_keypair(&self) -> (A, B);
 	// Take a public key, and turn it into bytes
@@ -26,7 +29,7 @@ pub trait KeyPair<A, B> {
 // separate files as passed.
 pub fn gen<A, B, T>(pair: &T, pkey_path: &str, skey_path: &str) -> Result<()>
 where
-	T: KeyPair<A, B>,
+	T: IKeyPair<A, B>,
 {
 	// Open the files
 	let mut pkey_f = OpenOptions::new()
@@ -43,7 +46,6 @@ where
 	skey_f.seek(SeekFrom::Start(pair.sec_offset()))?;
 	// Generate the keypair, and write out the keys to their separate files.
 	let keypair = pair.gen_keypair();
-	// This could be async
 	pkey_f.write_all(&pair.pub_to_bytes(&keypair.0))?;
 	skey_f.write_all(&pair.sec_to_bytes(&keypair.1))?;
 	Ok(())
@@ -63,7 +65,7 @@ pub fn get<A, B, T>(
 	pkey_path: &str,
 ) -> Result<KeyVariant<A, B>>
 where
-	T: KeyPair<A, B>,
+	T: IKeyPair<A, B>,
 {
 	let mut file = OpenOptions::new().read(true).open(pkey_path)?;
 	match variant {

@@ -1,10 +1,10 @@
-use super::key_pair::*;
-use super::key_quad::*;
-use super::signature_keyexchange::*;
+use super::base::*;
 use sodiumoxide::crypto::{kx, sign};
 use std::convert::TryInto;
 
-impl KeyPair<sign::PublicKey, sign::SecretKey> for Signature {
+// Classical KeyPair using libsodium via SodiumOxide.
+
+impl IKeyPair<sign::PublicKey, sign::SecretKey> for Signature {
 	// Generate a public and private key A, and B.
 	fn gen_keypair(&self) -> (sign::PublicKey, sign::SecretKey) {
 		sign::gen_keypair()
@@ -49,7 +49,7 @@ impl KeyPair<sign::PublicKey, sign::SecretKey> for Signature {
 	}
 }
 
-impl KeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
+impl IKeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
 	// Generate a public and private key A, and B.
 	fn gen_keypair(&self) -> (kx::PublicKey, kx::SecretKey) {
 		kx::gen_keypair()
@@ -94,7 +94,7 @@ impl KeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
 	}
 }
 
-pub type ClassicalKeyQuad = BaseKeyQuad<
+pub type ClassicalKeyQuad = KeyQuad<
 	sign::PublicKey,
 	sign::SecretKey,
 	kx::PublicKey,
@@ -105,10 +105,10 @@ pub type ClassicalKeyQuad = BaseKeyQuad<
 
 impl ClassicalKeyQuad {
 	pub fn new() -> ClassicalKeyQuad {
-		BaseKeyQuad::_new(Signature::new(0, 0), KeyExchange::new(0, 0))
+		KeyQuad::_new(Signature::new(0, 0), KeyExchange::new(0, 0))
 	}
 	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> ClassicalKeyQuad {
-		BaseKeyQuad::_new(
+		KeyQuad::_new(
 			Signature::new(pub_offset, sec_offset),
 			KeyExchange::new(pub_offset, sec_offset),
 		)

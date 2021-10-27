@@ -1,10 +1,17 @@
-use super::key_quad::*;
+use super::base::*;
 use super::{classical, quantum};
 use oqs::kem;
 use oqs::sig;
 use sodiumoxide::crypto::{kx, sign};
 use std::io::Result;
 use std::rc::Rc;
+
+// Hybrid KeyQuad actually composed of 2 KeyQuads. Hence it implements IKeyQuad
+// for itself.
+
+// 2 KeyQuads for cascading encryption of the 2 different algorithms in
+// mala_cryptor currently
+
 pub struct HybridKeyQuad {
 	q: Rc<quantum::QuantumKeyQuad>,
 	c: classical::ClassicalKeyQuad,
@@ -24,7 +31,7 @@ impl HybridKeyQuad {
 }
 
 impl
-	KeyQuad<
+	IKeyQuad<
 		(sig::PublicKey, sign::PublicKey),
 		(kem::PublicKey, kx::PublicKey),
 		(sig::SecretKey, sign::SecretKey),
