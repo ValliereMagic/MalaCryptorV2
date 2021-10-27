@@ -2,6 +2,9 @@ use sodiumoxide::crypto::{secretstream::gen_key, secretstream::Key, secretstream
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Result;
+
+// Symmetric key_file generation and retrieval using libsodium
+
 // Generates a secretstream::KEYBYTES sized key_file and writes it into a
 // new file at the key_file_path specified.
 pub fn gen(key_file_path: &str) -> Result<()> {
