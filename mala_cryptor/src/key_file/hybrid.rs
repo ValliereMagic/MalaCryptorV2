@@ -21,7 +21,7 @@ impl HybridKeyQuad {
 		let q = Rc::new(quantum::QuantumKeyQuad::new_hyb(0, 0));
 		let q2 = Rc::clone(&q);
 		HybridKeyQuad {
-			q: q,
+			q,
 			c: classical::ClassicalKeyQuad::new_hyb(
 				q2.total_pub_size_bytes() as u64,
 				q2.total_sec_size_bytes() as u64,

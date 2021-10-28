@@ -30,7 +30,7 @@ pub fn encrypt_quantum(
 	let (ct, ss) = kem.encapsulate(&dest_pkey.1).unwrap();
 	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
 	// Write out the ciphertext of the shared secret into the file
-	file_out.write_all(&ct.as_ref())?;
+	file_out.write_all(ct.as_ref())?;
 	// Encrypt the source file with the shared secret, and write it to the out
 	// file
 	encrypt_file(
@@ -49,7 +49,7 @@ pub fn encrypt_quantum(
 		)
 		.expect("Unable to sign digest");
 	// Write the signature to the encrypted file
-	file_out.write_all(&signature.as_ref())?;
+	file_out.write_all(signature.as_ref())?;
 	Ok(())
 }
 
@@ -75,7 +75,7 @@ pub fn decrypt_quantum(
 	// Seek to the signature and pull it in
 	let sig = get_q_sig_algo();
 	// Seek to the beginning of the signature
-	let signature_offset = -1 * (sig.length_signature() as i64);
+	let signature_offset = -(sig.length_signature() as i64);
 	file_in.seek(SeekFrom::End(signature_offset))?;
 	let mut buff = vec![0u8; sig.length_signature()];
 	file_in.read_exact(&mut buff)?;

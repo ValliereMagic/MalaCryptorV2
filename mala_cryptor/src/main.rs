@@ -7,9 +7,7 @@ mod key_file;
 use clap::{App, AppSettings, SubCommand};
 use file_symmetric_encryption::*;
 use key_file::*;
-use oqs;
 use rpassword::prompt_password_stdout;
-use sodiumoxide;
 use std::io::{Error, ErrorKind, Result};
 
 fn main() -> Result<()> {
@@ -100,10 +98,10 @@ fn main() -> Result<()> {
 			match options.value_of("out_file") {
 				Some(f) => Ok(f),
 				None => {
-					return Err(Error::new(
+					Err(Error::new(
 						ErrorKind::Other,
 						"Output file must be specified.",
-					));
+					))
 				}
 			}
 		}
@@ -146,7 +144,7 @@ fn main() -> Result<()> {
 		// User is generating a keyfile
 		} else if let Some(gen) = sym.subcommand_matches("gen") {
 			let out_file = get_outfile_options(gen)?;
-			symmetric::gen(&out_file)?;
+			symmetric::gen(out_file)?;
 		}
 	// The User is doing public key encryption
 	} else if let Some(public) = matches.subcommand_matches("pub") {

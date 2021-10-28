@@ -45,8 +45,8 @@ where
 {
 	pub fn _new(sign: E, kem: F) -> KeyQuad<A, B, C, D, E, F> {
 		KeyQuad {
-			sign: sign,
-			kem: kem,
+			sign,
+			kem,
 			phantom_a: PhantomData,
 			phantom_b: PhantomData,
 			phantom_c: PhantomData,
