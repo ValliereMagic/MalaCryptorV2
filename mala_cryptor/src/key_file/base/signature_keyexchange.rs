@@ -20,8 +20,8 @@ pub struct Signature {
 impl Signature {
 	pub fn new(pub_offset: u64, sec_offset: u64) -> Signature {
 		Signature {
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
+			pub_offset,
+			sec_offset,
 		}
 	}
 	pub fn pub_offset(&self) -> u64 {
@@ -40,8 +40,8 @@ pub struct KeyExchange {
 impl KeyExchange {
 	pub fn new(pub_offset: u64, sec_offset: u64) -> KeyExchange {
 		KeyExchange {
-			pub_offset: pub_offset,
-			sec_offset: sec_offset,
+			pub_offset,
+			sec_offset,
 		}
 	}
 	pub fn pub_offset(&self) -> u64 {

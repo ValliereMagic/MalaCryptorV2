@@ -68,7 +68,7 @@ impl QKeyExchange {
 	fn new(sig: Rc<QSignature>, pub_offset: u64, sec_offset: u64) -> QKeyExchange {
 		QKeyExchange {
 			key_exchange: KeyExchange::new(pub_offset, sec_offset),
-			sig: sig,
+			sig,
 			kem: enc_algos_in_use::get_q_kem_algo(),
 		}
 	}

@@ -12,7 +12,7 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<Salt>) -> (Salt, Key) {
 	};
 	pwhash::derive_key(
 		&mut key.0,
-		&pass.as_bytes(),
+		pass.as_bytes(),
 		&salt,
 		OPSLIMIT_SENSITIVE,
 		MEMLIMIT_SENSITIVE,
