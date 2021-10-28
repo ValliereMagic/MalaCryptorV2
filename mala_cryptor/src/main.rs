@@ -84,8 +84,8 @@ fn main() -> Result<()> {
 						.about("Decrypt a file using a public key [and verify signature]")
 						.args_from_usage(
 							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair to generate: q: quantum, c: classical, h: hybrid (both, in cascade)'
-							-f, --from=[Input FILENAME] 'specify the public key of the sender'
-							-s, --secret_key=[Input FILENAME] 'specify the secret key to sign with'
+							-f, --from=[Input FILENAME] 'specify the public key of the sender [to verify the signature]'
+							-s, --secret_key=[Input FILENAME] 'specify the secret key to decrypt the file'
 							-p, --public_key=[Input FILENAME] 'specify our public key for key exchange'
 							-i, --in_file=[FILENAME] 'specify a file to encrypt'
 							-o, --out_file=[FILENAME] 'specify an output filename'"

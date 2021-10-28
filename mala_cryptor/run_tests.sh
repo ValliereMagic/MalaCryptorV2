@@ -1,2 +1,2 @@
 #!/bin/bash
-RUST_MIN_STACK=8388608 cargo test
+RUST_MIN_STACK=33554432 cargo test
