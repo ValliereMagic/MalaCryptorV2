@@ -40,6 +40,8 @@ pub fn encrypt_quantum(
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key")),
 	)?;
+	// Rewind the file back to the start
+	file_out.rewind()?;
 	// Digest, and sign the encrypted file
 	let sig = get_q_sig_algo();
 	let signature = sig
@@ -83,7 +85,7 @@ pub fn decrypt_quantum(
 		.signature_from_bytes(&buff)
 		.expect("Unable to extract signature from file.");
 	// Seek back to the beginning of the file
-	file_in.seek(SeekFrom::Start(0))?;
+	file_in.rewind()?;
 	// Digest the file up to the signature
 	let digest = digest(&mut file_in, Some(signature_offset))?;
 	// Check whether the signature matches
@@ -94,7 +96,7 @@ pub fn decrypt_quantum(
 	// Truncate the signature from the end of the file
 	file_in.set_len((file_in.metadata().unwrap().len() as i64 + signature_offset) as u64)?;
 	// Seek back to the beginning of the file
-	file_in.seek(SeekFrom::Start(0))?;
+	file_in.rewind()?;
 	let kem = get_q_kem_algo();
 	// Read in the key exchange ciphertext
 	let mut kem_ct_buff = vec![0u8; kem.length_ciphertext()];
