@@ -5,6 +5,7 @@ mod global_constants;
 mod key_derivation;
 mod key_file;
 use clap::{App, AppSettings, SubCommand};
+use file_asymmetric_encryption::*;
 use file_symmetric_encryption::*;
 use key_file::*;
 use rpassword::prompt_password_stdout;
@@ -91,20 +92,17 @@ fn main() -> Result<()> {
 				)
 		)
 		.get_matches();
+	// Helper function for all subcommands
+	// Retrieve a key string, creating an error otherwise.
+	fn get_key<'a>(matches: &'a clap::ArgMatches, key: &str, err_txt: &str) -> Result<&'a str> {
+		match matches.value_of(key) {
+			Some(s) => Ok(s),
+			None => Err(Error::new(ErrorKind::Other, err_txt)),
+		}
+	}
 	// The user is doing symmetric encryption
 	if let Some(sym) = matches.subcommand_matches("sym") {
-		// Get the options from clap (need to do for both enc and dec)
-		fn get_outfile_options<'a>(options: &'a clap::ArgMatches) -> Result<&'a str> {
-			match options.value_of("out_file") {
-				Some(f) => Ok(f),
-				None => {
-					Err(Error::new(
-						ErrorKind::Other,
-						"Output file must be specified.",
-					))
-				}
-			}
-		}
+		// Symmetric key options helper function
 		fn get_sym_options<'a>(
 			options: &'a clap::ArgMatches,
 		) -> Result<(Option<&'a str>, &'a str, &'a str)> {
@@ -119,7 +117,11 @@ fn main() -> Result<()> {
 					));
 				}
 			};
-			Ok((key_file, in_file, get_outfile_options(options)?))
+			Ok((
+				key_file,
+				in_file,
+				get_key(options, "out_file", "Output file must be specified")?,
+			))
 		}
 		// User is encrypting a file
 		if let Some(enc) = sym.subcommand_matches("enc") {
@@ -143,56 +145,99 @@ fn main() -> Result<()> {
 			}
 		// User is generating a keyfile
 		} else if let Some(gen) = sym.subcommand_matches("gen") {
-			let out_file = get_outfile_options(gen)?;
+			let out_file = get_key(gen, "out_file", "Output file must be specified")?;
 			symmetric::gen(out_file)?;
 		}
 	// The User is doing public key encryption
 	} else if let Some(public) = matches.subcommand_matches("pub") {
+		// Functions for retrieving public-secret key info from clap
+		enum Mode {
+			Quantum,
+			Classical,
+			Hybrid,
+		}
+		// Take the mode string, and error check it, then return it as an enum
+		fn get_mode(matches: &clap::ArgMatches) -> Result<Mode> {
+			let error_text = "Invalid Mode specified.";
+			let m = matches
+				.value_of("mode")
+				.ok_or_else(|| Error::new(ErrorKind::Other, error_text))?
+				.trim();
+			return if m.len() > 1 {
+				Err(Error::new(ErrorKind::Other, error_text))
+			} else {
+				let mode: char = m.chars().next().unwrap();
+				match mode {
+					'q' => Ok(Mode::Quantum),
+					'c' => Ok(Mode::Classical),
+					'h' => Ok(Mode::Hybrid),
+					_ => return Err(Error::new(ErrorKind::Other, error_text)),
+				}
+			};
+		}
+		// ordering: (key, secret_key, public_key, in_file, out_file)
+		fn get_info<'a>(
+			matches: &'a clap::ArgMatches,
+			key: &str,
+		) -> Result<(&'a str, &'a str, &'a str, &'a str, &'a str)> {
+			let key = get_key(
+				matches,
+				key,
+				&format!("A {} key file must be specified.", key),
+			)?;
+			let secret_key = get_key(
+				matches,
+				"secret_key",
+				"A Secret Key file must be specified.",
+			)?;
+			let public_key = get_key(
+				matches,
+				"public_key",
+				"A Public Key file must be specified.",
+			)?;
+			let in_file = get_key(matches, "in_file", "Input file must be specified")?;
+			let out_file = get_key(matches, "out_file", "Output file must be specified")?;
+			Ok((key, secret_key, public_key, in_file, out_file))
+		}
+		// Logic
 		if let Some(gen) = public.subcommand_matches("gen") {
-			let secret_key = match gen.value_of("secret_key") {
-				Some(s) => s,
-				None => {
-					return Err(Error::new(
-						ErrorKind::Other,
-						"A Secret Key file must be specified.",
-					));
+			let secret_key = get_key(gen, "secret_key", "A Secret Key file must be specified.")?;
+			let public_key = get_key(gen, "public_key", "A Public Key file must be specified.")?;
+			match get_mode(gen)? {
+				Mode::Quantum => {
+					let q = QuantumKeyQuad::new();
+					q.gen(public_key, secret_key)?
 				}
-			};
-			let public_key = match gen.value_of("public_key") {
-				Some(p) => p,
-				None => {
-					return Err(Error::new(
-						ErrorKind::Other,
-						"A Public Key file must be specified.",
-					));
+				Mode::Classical => {
+					let c = ClassicalKeyQuad::new();
+					c.gen(public_key, secret_key)?
 				}
-			};
-			match gen.value_of("mode") {
-				Some(m) => {
-					let m = m.trim();
-					if m.len() > 1 {
-						return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
-					}
-					match m.chars().next().unwrap() {
-						'q' => {
-							let q = QuantumKeyQuad::new();
-							q.gen(public_key, secret_key)?
-						}
-						'c' => {
-							let c = ClassicalKeyQuad::new();
-							c.gen(public_key, secret_key)?
-						}
-						'h' => {
-							let h = HybridKeyQuad::new();
-							h.gen(public_key, secret_key)?
-						}
-						_ => {
-							return Err(Error::new(ErrorKind::Other, "Invalid Mode specified."));
-						}
-					}
+				Mode::Hybrid => {
+					let h = HybridKeyQuad::new();
+					h.gen(public_key, secret_key)?
 				}
-				None => return Err(Error::new(ErrorKind::Other, "A mode must be specified.")),
-			};
+			}
+		} else if let Some(enc) = public.subcommand_matches("enc") {
+			let (dest_key, secret_key, public_key, in_file, out_file) =
+				get_info(enc, "destination")?;
+			match get_mode(enc)? {
+				Mode::Quantum => {
+					encrypt_quantum(dest_key, secret_key, public_key, in_file, out_file)?
+				}
+				_ => {
+					unimplemented!();
+				}
+			}
+		} else if let Some(dec) = public.subcommand_matches("dec") {
+			let (from_key, secret_key, public_key, in_file, out_file) = get_info(dec, "from")?;
+			match get_mode(dec)? {
+				Mode::Quantum => {
+					decrypt_quantum(from_key, secret_key, public_key, in_file, out_file)?
+				}
+				_ => {
+					unimplemented!();
+				}
+			}
 		}
 	}
 	Ok(())
