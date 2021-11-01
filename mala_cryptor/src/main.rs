@@ -4,6 +4,7 @@ mod file_symmetric_encryption;
 mod global_constants;
 mod key_derivation;
 mod key_file;
+mod file_asymmetric_encryption_v2;
 use clap::{App, AppSettings, SubCommand};
 use file_asymmetric_encryption::*;
 use file_symmetric_encryption::*;
