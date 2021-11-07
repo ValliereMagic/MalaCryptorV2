@@ -49,7 +49,15 @@ pub trait IAsyCryptable<
 	fn signature_from_bytes(&self, bytes: &[u8]) -> Signature;
 }
 
-pub fn asy_encrypt_file<SharedSecret, CipherText, PublicKey, SecretKey, SigPublic, SigSecret, Signature>(
+pub fn asy_encrypt_file<
+	SharedSecret,
+	CipherText,
+	PublicKey,
+	SecretKey,
+	SigPublic,
+	SigSecret,
+	Signature,
+>(
 	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
 		+ IAsyCryptable<
 			SharedSecret,
@@ -102,7 +110,15 @@ pub fn asy_encrypt_file<SharedSecret, CipherText, PublicKey, SecretKey, SigPubli
 	Ok(())
 }
 
-pub fn asy_decrypt_file<SharedSecret, CipherText, PublicKey, SecretKey, SigPublic, SigSecret, Signature>(
+pub fn asy_decrypt_file<
+	SharedSecret,
+	CipherText,
+	PublicKey,
+	SecretKey,
+	SigPublic,
+	SigSecret,
+	Signature,
+>(
 	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
 		+ IAsyCryptable<
 			SharedSecret,

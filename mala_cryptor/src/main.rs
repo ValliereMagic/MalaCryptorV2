@@ -223,6 +223,10 @@ fn main() -> Result<()> {
 					let q = QuantumKeyQuad::new();
 					asy_encrypt_file(q, dest_key, secret_key, public_key, in_file, out_file)?
 				}
+				Mode::Classical => {
+					let c = ClassicalKeyQuad::new();
+					asy_encrypt_file(c, dest_key, secret_key, public_key, in_file, out_file)?
+				}
 				_ => {
 					unimplemented!();
 				}
@@ -233,6 +237,10 @@ fn main() -> Result<()> {
 				Mode::Quantum => {
 					let q = QuantumKeyQuad::new();
 					asy_decrypt_file(q, from_key, secret_key, public_key, in_file, out_file)?
+				}
+				Mode::Classical => {
+					let c = ClassicalKeyQuad::new();
+					asy_decrypt_file(c, from_key, secret_key, public_key, in_file, out_file)?
 				}
 				_ => {
 					unimplemented!();
