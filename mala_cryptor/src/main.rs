@@ -84,7 +84,7 @@ fn main() -> Result<()> {
 							-f, --from=[Input FILENAME] 'specify the public key of the sender [to verify the signature]'
 							-s, --secret_key=[Input FILENAME] 'specify the secret key to decrypt the file'
 							-p, --public_key=[Input FILENAME] 'specify our public key for key exchange'
-							-i, --in_file=[FILENAME] 'specify a file to encrypt'
+							-i, --in_file=[FILENAME] 'specify a file to decrypt'
 							-o, --out_file=[FILENAME] 'specify an output filename'"
 						)
 				)
