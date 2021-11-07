@@ -11,13 +11,13 @@ use std::marker::PhantomData;
 // the future with very little code change. [re-implementing KeyPair for each of
 // them]
 
-pub trait IKeyQuad<A, B, C, D> {
+pub trait IKeyQuad<SigPub, SigSec, KemPub, KemSec> {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair
 	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
 	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(A, B)>;
-	fn get_sec(&self, skey_path: &str) -> Result<(C, D)>;
+	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, SigSec)>;
+	fn get_sec(&self, skey_path: &str) -> Result<(KemPub, KemSec)>;
 	// The total size that the file will be for each of the key parts. This is
 	// used for composition key files where multiple different keypairs are
 	// stored in the same file.
@@ -25,25 +25,29 @@ pub trait IKeyQuad<A, B, C, D> {
 	fn total_sec_size_bytes(&self) -> usize;
 }
 
-pub struct KeyQuad<A, B, C, D, E, F>
+pub struct KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
-	E: IKeyPair<A, B>,
-	F: IKeyPair<C, D>,
+	SigKeyPair: IKeyPair<SigPub, SigSec>,
+	KemKeyPair: IKeyPair<KemPub, KemSec>,
 {
-	sign: E,
-	kem: F,
-	phantom_a: PhantomData<A>,
-	phantom_b: PhantomData<B>,
-	phantom_c: PhantomData<C>,
-	phantom_d: PhantomData<D>,
+	sign: SigKeyPair,
+	kem: KemKeyPair,
+	phantom_a: PhantomData<SigPub>,
+	phantom_b: PhantomData<SigSec>,
+	phantom_c: PhantomData<KemPub>,
+	phantom_d: PhantomData<KemSec>,
 }
 
-impl<A, B, C, D, E, F> KeyQuad<A, B, C, D, E, F>
+impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+	KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
-	E: IKeyPair<A, B>,
-	F: IKeyPair<C, D>,
+	SigKeyPair: IKeyPair<SigPub, SigSec>,
+	KemKeyPair: IKeyPair<KemPub, KemSec>,
 {
-	pub fn _new(sign: E, kem: F) -> KeyQuad<A, B, C, D, E, F> {
+	pub fn _new(
+		sign: SigKeyPair,
+		kem: KemKeyPair,
+	) -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair> {
 		KeyQuad {
 			sign,
 			kem,
@@ -55,10 +59,12 @@ where
 	}
 }
 
-impl<A, B, C, D, E, F> IKeyQuad<A, C, B, D> for KeyQuad<A, B, C, D, E, F>
+impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+	IKeyQuad<SigPub, KemPub, SigSec, KemSec>
+	for KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
-	E: IKeyPair<A, B>,
-	F: IKeyPair<C, D>,
+	SigKeyPair: IKeyPair<SigPub, SigSec>,
+	KemKeyPair: IKeyPair<KemPub, KemSec>,
 {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair
@@ -67,7 +73,7 @@ where
 		gen(&self.kem, pkey_path, skey_path)
 	}
 	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(A, C)> {
+	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, KemPub)> {
 		let sig = match get(KeyVariant::Public(()), &self.sign, pkey_path)? {
 			KeyVariant::Public(p) => p,
 			_ => unreachable!(),
@@ -78,7 +84,7 @@ where
 		};
 		Ok((sig, kem))
 	}
-	fn get_sec(&self, skey_path: &str) -> Result<(B, D)> {
+	fn get_sec(&self, skey_path: &str) -> Result<(SigSec, KemSec)> {
 		let sig = match get(KeyVariant::Secret(()), &self.sign, skey_path)? {
 			KeyVariant::Secret(s) => s,
 			_ => unreachable!(),
