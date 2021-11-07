@@ -4,6 +4,7 @@ use crate::key_file::*;
 use sodiumoxide::crypto::generichash::{State, DIGEST_MAX};
 use sodiumoxide::crypto::secretstream::{Key, KEYBYTES};
 use std::convert::TryInto;
+use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::prelude::*;
@@ -21,13 +22,19 @@ pub trait IAsyCryptable<
 >
 {
 	// Shared secret based functions
+	// Specifies whether this IAsyCryptable key exchange mechanism uses a
+	// ciphertext for acquiring a shared secret
 	fn uses_cipher_text(&self) -> bool;
+	// Create a shared secret on the "sender" side... used during the encryption
+	// process
 	fn create_shared_secret(
 		&self,
 		dest_pkey: &PublicKey,
 		our_pkey: &PublicKey,
 		our_skey: &SecretKey,
 	) -> (SharedSecret, Option<CipherText>);
+	// Retrieve the shared secret on the "receiver" side... used during the
+	// decryption process
 	fn retrieve_shared_secret(
 		&self,
 		our_skey: &SecretKey,
@@ -184,6 +191,8 @@ pub fn asy_decrypt_file<
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key.")),
 	)?;
+	// Remove the encrypted in-file; it was modified in the decryption procedure.
+	fs::remove_file(file_in_path)?;
 	Ok(())
 }
 
