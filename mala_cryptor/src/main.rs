@@ -1,13 +1,10 @@
+mod enc;
 mod enc_algos_in_use;
-mod file_asymmetric_encryption;
-mod file_symmetric_encryption;
 mod global_constants;
 mod key_derivation;
 mod key_file;
-mod file_asymmetric_encryption_v2;
 use clap::{App, AppSettings, SubCommand};
-use file_asymmetric_encryption::*;
-use file_symmetric_encryption::*;
+use enc::*;
 use key_file::*;
 use rpassword::prompt_password_stdout;
 use std::io::{Error, ErrorKind, Result};
@@ -223,7 +220,8 @@ fn main() -> Result<()> {
 				get_info(enc, "destination")?;
 			match get_mode(enc)? {
 				Mode::Quantum => {
-					encrypt_quantum(dest_key, secret_key, public_key, in_file, out_file)?
+					let q = QuantumKeyQuad::new();
+					asy_encrypt_file(q, dest_key, secret_key, public_key, in_file, out_file)?
 				}
 				_ => {
 					unimplemented!();
@@ -233,7 +231,8 @@ fn main() -> Result<()> {
 			let (from_key, secret_key, public_key, in_file, out_file) = get_info(dec, "from")?;
 			match get_mode(dec)? {
 				Mode::Quantum => {
-					decrypt_quantum(from_key, secret_key, public_key, in_file, out_file)?
+					let q = QuantumKeyQuad::new();
+					asy_decrypt_file(q, from_key, secret_key, public_key, in_file, out_file)?
 				}
 				_ => {
 					unimplemented!();

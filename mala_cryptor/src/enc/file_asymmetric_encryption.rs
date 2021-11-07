@@ -1,5 +1,4 @@
-use crate::enc_algos_in_use::*;
-use crate::file_symmetric_encryption::*;
+use super::*;
 use crate::global_constants::*;
 use crate::key_file::*;
 use sodiumoxide::crypto::generichash::{State, DIGEST_MAX};
@@ -11,21 +10,68 @@ use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
 
-pub fn encrypt_quantum(
+pub trait IAsyCryptable<
+	SharedSecret,
+	CipherText,
+	PublicKey,
+	SecretKey,
+	SigPublic,
+	SigSecret,
+	Signature,
+>
+{
+	// Shared secret based functions
+	fn uses_cipher_text(&self) -> bool;
+	fn create_shared_secret(
+		&self,
+		dest_pkey: &PublicKey,
+		our_pkey: &PublicKey,
+		our_skey: &SecretKey,
+	) -> (SharedSecret, Option<CipherText>);
+	fn retrieve_shared_secret(
+		&self,
+		our_skey: &SecretKey,
+		our_pkey: &PublicKey,
+		sender_pkey: &PublicKey,
+		ciphertext: Option<&CipherText>,
+	) -> SharedSecret;
+	// Serializers and Metadata
+	fn ciphertext_to_bytes<'a>(&self, ct: &'a CipherText) -> &'a [u8];
+	fn ciphertext_from_bytes(&self, bytes: &[u8]) -> CipherText;
+	fn ciphertext_length(&self) -> usize;
+	fn shared_secret_to_bytes<'a>(&self, ss: &'a SharedSecret) -> &'a [u8];
+	// Signature based functions
+	fn sign(&self, data: &[u8], key: &SigSecret) -> Signature;
+	fn verify(&self, message: &[u8], signature: &Signature, key: &SigPublic) -> bool;
+	// Serializers and Metadata
+	fn signature_length(&self) -> i64;
+	fn signature_to_bytes<'a>(&self, signature: &'a Signature) -> &'a [u8];
+	fn signature_from_bytes(&self, bytes: &[u8]) -> Signature;
+}
+
+pub fn asy_encrypt_file<SharedSecret, CipherText, PublicKey, SecretKey, SigPublic, SigSecret, Signature>(
+	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
+		+ IAsyCryptable<
+			SharedSecret,
+			CipherText,
+			PublicKey,
+			SecretKey,
+			SigPublic,
+			SigSecret,
+			Signature,
+		>,
 	dest_pkey_path: &str,
 	skey_path: &str,
 	pkey_path: &str,
 	file_in_path: &str,
 	file_out_path: &str,
 ) -> Result<()> {
-	let q = QuantumKeyQuad::new();
-	// Retrieve the required keys from files
-	let dest_pkey = q.get_pub(dest_pkey_path)?;
-	let skey = q.get_sec(skey_path)?;
-	let _ = q.get_pub(pkey_path)?;
-	let kem = get_q_kem_algo();
+	let dest_pkey = quad.get_pub(dest_pkey_path)?;
+	let skey = quad.get_sec(skey_path)?;
+	let our_pub = quad.get_pub(pkey_path)?;
 	// Derive the shared secret
-	let (ct, ss) = kem.encapsulate(&dest_pkey.1).unwrap();
+	let (ss, ct) = quad.create_shared_secret(&dest_pkey.1, &our_pub.1, &skey.1);
+	// Open up the files
 	let (mut file_in, mut file_out) = (
 		File::open(file_in_path)?,
 		OpenOptions::new()
@@ -35,44 +81,48 @@ pub fn encrypt_quantum(
 			.truncate(true)
 			.open(file_out_path)?,
 	);
-	// Write out the ciphertext of the shared secret into the file
-	file_out.write_all(ct.as_ref())?;
+	// If there is a ciphertext, write it out to the file
+	if let Some(ct) = ct {
+		file_out.write_all(quad.ciphertext_to_bytes(&ct))?;
+	}
 	// Encrypt the source file with the shared secret, and write it to the out
 	// file
 	encrypt_file(
 		&mut file_in,
 		&mut file_out,
-		Key(ss.as_ref()[0..KEYBYTES]
+		Key(quad.shared_secret_to_bytes(&ss)[0..KEYBYTES]
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key")),
 	)?;
 	// Rewind the file back to the start
 	file_out.rewind()?;
 	// Digest, and sign the encrypted file
-	let sig = get_q_sig_algo();
-	let signature = sig
-		.sign(
-			&digest(&mut file_out, None)?[..],
-			&skey.0,
-		)
-		.expect("Unable to sign digest");
-	// Write the signature to the encrypted file
-	file_out.write_all(signature.as_ref())?;
+	let signature = quad.sign(&digest(&mut file_out, None)?, &skey.0);
+	file_out.write_all(quad.signature_to_bytes(&signature))?;
 	Ok(())
 }
 
-pub fn decrypt_quantum(
+pub fn asy_decrypt_file<SharedSecret, CipherText, PublicKey, SecretKey, SigPublic, SigSecret, Signature>(
+	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
+		+ IAsyCryptable<
+			SharedSecret,
+			CipherText,
+			PublicKey,
+			SecretKey,
+			SigPublic,
+			SigSecret,
+			Signature,
+		>,
 	sender_pub_key_path: &str,
 	skey_path: &str,
 	pkey_path: &str,
 	file_in_path: &str,
 	file_out_path: &str,
 ) -> Result<()> {
-	let q = QuantumKeyQuad::new();
 	// Retrieve the required keys from files
-	let sender_pkey = q.get_pub(sender_pub_key_path)?;
-	let skey = q.get_sec(skey_path)?;
-	let _ = q.get_pub(pkey_path)?;
+	let sender_pkey = quad.get_pub(sender_pub_key_path)?;
+	let skey = quad.get_sec(skey_path)?;
+	let our_pkey = quad.get_pub(pkey_path)?;
 	let (mut file_in, mut file_out) = (
 		OpenOptions::new()
 			.read(true)
@@ -80,45 +130,41 @@ pub fn decrypt_quantum(
 			.open(file_in_path)?,
 		File::create(file_out_path)?,
 	);
-	let sig = get_q_sig_algo();
 	// Seek to the beginning of the signature
-	let signature_offset = sig.length_signature() as i64;
+	let signature_offset = quad.signature_length();
 	file_in.seek(SeekFrom::End(-signature_offset))?;
 	let mut buff = vec![0u8; signature_offset as usize];
 	file_in.read_exact(&mut buff)?;
-	let signature = sig
-		.signature_from_bytes(&buff)
-		.expect("Unable to extract signature from file.");
+	let signature = quad.signature_from_bytes(&buff);
 	// Seek back to the beginning of the file
 	file_in.rewind()?;
 	// Digest the file up to the signature
 	let digest = digest(&mut file_in, Some(signature_offset))?;
 	// Check whether the signature matches
-	match sig.verify(&digest, signature, &sender_pkey.0) {
-		Ok(()) => (),
-		Err(_) => panic!("Signature is bad. Not attempting to decrypt file. Aborting."),
+	match quad.verify(&digest, &signature, &sender_pkey.0) {
+		true => (),
+		false => panic!("Signature is bad. Not attempting to decrypt file. Aborting."),
 	}
 	// Truncate the signature from the end of the file
 	file_in.set_len((file_in.metadata().unwrap().len() as i64 - signature_offset) as u64)?;
-	let kem = get_q_kem_algo();
-	// Read in the key exchange ciphertext
-	// Rewind the file to the beginning first
+	// Rewind the file to the beginning
 	file_in.rewind()?;
-	let mut kem_ct_buff = vec![0u8; kem.length_ciphertext()];
-	file_in.read_exact(&mut kem_ct_buff)?;
-	let ct = kem
-		.ciphertext_from_bytes(&kem_ct_buff)
-		.expect("Unable to extract KEM ciphertext from file.");
+	// Read in the key exchange ciphertext if there is one
+	let ct = if quad.uses_cipher_text() {
+		let mut kem_ct_buff = vec![0u8; quad.ciphertext_length()];
+		file_in.read_exact(&mut kem_ct_buff)?;
+		Some(quad.ciphertext_from_bytes(&kem_ct_buff))
+	} else {
+		None
+	};
 	// Derive the shared secret
-	let ss = kem
-		.decapsulate(&skey.1, &ct)
-		.expect("Unable to get shared secret.");
+	let ss = quad.retrieve_shared_secret(&skey.1, &our_pkey.1, &sender_pkey.1, ct.as_ref());
 	// Our file pointer is at the beginning of the encrypted file, and we have
 	// removed the signature from the end. Time to finally decrypt the file
 	decrypt_file(
 		&mut file_in,
 		&mut file_out,
-		Key(ss.as_ref()[0..KEYBYTES]
+		Key(quad.shared_secret_to_bytes(&ss)[0..KEYBYTES]
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key.")),
 	)?;
