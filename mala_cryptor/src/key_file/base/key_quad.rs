@@ -11,13 +11,13 @@ use std::marker::PhantomData;
 // the future with very little code change. [re-implementing KeyPair for each of
 // them]
 
-pub trait IKeyQuad<SigPub, SigSec, KemPub, KemSec> {
+pub trait IKeyQuad<SigPub, KemPub, SigSec, KemSec> {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair
 	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
 	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, SigSec)>;
-	fn get_sec(&self, skey_path: &str) -> Result<(KemPub, KemSec)>;
+	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, KemPub)>;
+	fn get_sec(&self, skey_path: &str) -> Result<(SigSec, KemSec)>;
 	// The total size that the file will be for each of the key parts. This is
 	// used for composition key files where multiple different keypairs are
 	// stored in the same file.
