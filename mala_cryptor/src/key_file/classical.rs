@@ -94,21 +94,24 @@ impl IKeyPair<kx::PublicKey, kx::SecretKey> for KeyExchange {
 	}
 }
 
-pub type ClassicalKeyQuad = KeyQuad<
-	sign::PublicKey,
-	sign::SecretKey,
-	kx::PublicKey,
-	kx::SecretKey,
-	Signature,
-	KeyExchange,
->;
+pub type ClassicalKeyQuad =
+	KeyQuad<sign::PublicKey, sign::SecretKey, kx::PublicKey, kx::SecretKey, Signature, KeyExchange>;
 
-impl ClassicalKeyQuad {
-	pub fn new() -> ClassicalKeyQuad {
-		KeyQuad::_new(Signature::new(0, 0), KeyExchange::new(0, 0))
+impl
+	IKeyQuadCreator<
+		sign::PublicKey,
+		sign::SecretKey,
+		kx::PublicKey,
+		kx::SecretKey,
+		Signature,
+		KeyExchange,
+	> for ClassicalKeyQuad
+{
+	fn new() -> ClassicalKeyQuad {
+		KeyQuad::create(Signature::new(0, 0), KeyExchange::new(0, 0))
 	}
-	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> ClassicalKeyQuad {
-		KeyQuad::_new(
+	fn hyb_new(pub_offset: u64, sec_offset: u64) -> ClassicalKeyQuad {
+		KeyQuad::create(
 			Signature::new(pub_offset, sec_offset),
 			KeyExchange::new(pub_offset, sec_offset),
 		)

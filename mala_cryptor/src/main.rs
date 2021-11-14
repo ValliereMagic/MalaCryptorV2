@@ -3,7 +3,7 @@ mod enc_algos_in_use;
 mod global_constants;
 mod key_derivation;
 mod key_file;
-use clap::{App, AppSettings, SubCommand};
+use clap::{App, AppSettings, SubCommand, crate_version};
 use enc::*;
 use key_file::*;
 use rpassword::prompt_password_stdout;
@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 	oqs::init();
 	sodiumoxide::init().expect("Unable to initialize libsodium.");
 	let matches = App::new("mala_cryptor")
-		.version("0.9.0")
+		.version(crate_version!())
 		.author("ValliereMagic")
 		.about("A command line file cryptography tool")
 		.setting(AppSettings::ArgRequiredElseHelp)
@@ -213,7 +213,7 @@ fn main() -> Result<()> {
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = ClassicalKeyQuad::new_hyb(
+					let c = ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
 					);
@@ -235,7 +235,7 @@ fn main() -> Result<()> {
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = ClassicalKeyQuad::new_hyb(
+					let c = ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
 					);
@@ -258,7 +258,7 @@ fn main() -> Result<()> {
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = ClassicalKeyQuad::new_hyb(
+					let c = ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
 					);

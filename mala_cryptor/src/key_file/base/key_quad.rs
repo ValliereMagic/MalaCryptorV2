@@ -5,13 +5,13 @@ use std::marker::PhantomData;
 // Generic functions representing the set of 2 KeyPairs used for asymmetric
 // encryption in mala_cryptor `KeyQuad`; which are a Signature Pair, and
 // KeyExchange pair. The Interface allows specialization of KeyQuads with
-// concrete types, as well as reducing a lot of code use.
+// concrete types, as well as reducing a lot of code reuse.
 
 // It was designed to allow different algorithms to be used in mala_cryptor in
 // the future with very little code change. [re-implementing KeyPair for each of
 // them]
 
-pub trait IKeyQuad<SigPub, KemPub, SigSec, KemSec> {
+pub trait IKeyQuad<SigPub, SigSec, KemPub, KemSec> {
 	// Generate a public and private keyquad composed of a signature public and
 	// secret pair as well as a key exchange public and secret pair
 	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
@@ -25,6 +25,22 @@ pub trait IKeyQuad<SigPub, KemPub, SigSec, KemSec> {
 	fn total_sec_size_bytes(&self) -> usize;
 }
 
+// Specifies the standard way of creating a KeyQuad. A variant that has an
+// offset for hybrid encryption where multiple rounds are done; and a basic
+// variant with offsets of 0.
+pub trait IKeyQuadCreator<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+where
+	SigKeyPair: IKeyPair<SigPub, SigSec>,
+	KemKeyPair: IKeyPair<KemPub, KemSec>,
+{
+	fn new() -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>;
+	fn hyb_new(
+		pub_offset: u64,
+		sec_offset: u64,
+	) -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>;
+}
+
+// Generic KeyQuad struct extensible by any specific implementation
 pub struct KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
 	SigKeyPair: IKeyPair<SigPub, SigSec>,
@@ -38,13 +54,15 @@ where
 	phantom_d: PhantomData<KemSec>,
 }
 
+// Base creation of a KeyQuad. Used by specific implementations to bootstrap
+// themselves
 impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 	KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
 	SigKeyPair: IKeyPair<SigPub, SigSec>,
 	KemKeyPair: IKeyPair<KemPub, KemSec>,
 {
-	pub fn _new(
+	pub fn create(
 		sign: SigKeyPair,
 		kem: KemKeyPair,
 	) -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair> {
@@ -59,8 +77,10 @@ where
 	}
 }
 
+// Universal implementation of the different operations that a KeyQuad needs to
+// perform
 impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
-	IKeyQuad<SigPub, KemPub, SigSec, KemSec>
+	IKeyQuad<SigPub, SigSec, KemPub, KemSec>
 	for KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
 where
 	SigKeyPair: IKeyPair<SigPub, SigSec>,
