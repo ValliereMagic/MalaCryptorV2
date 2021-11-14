@@ -7,6 +7,7 @@ use clap::{App, AppSettings, SubCommand};
 use enc::*;
 use key_file::*;
 use rpassword::prompt_password_stdout;
+use std::fs;
 use std::io::{Error, ErrorKind, Result};
 
 fn main() -> Result<()> {
@@ -211,8 +212,13 @@ fn main() -> Result<()> {
 					c.gen(public_key, secret_key)?
 				}
 				Mode::Hybrid => {
-					let h = HybridKeyQuad::new();
-					h.gen(public_key, secret_key)?
+					let q = QuantumKeyQuad::new();
+					let c = ClassicalKeyQuad::new_hyb(
+						q.total_pub_size_bytes() as u64,
+						q.total_sec_size_bytes() as u64,
+					);
+					q.gen(public_key, secret_key)?;
+					c.gen(public_key, secret_key)?;
 				}
 			}
 		} else if let Some(enc) = public.subcommand_matches("enc") {
@@ -227,8 +233,16 @@ fn main() -> Result<()> {
 					let c = ClassicalKeyQuad::new();
 					asy_encrypt_file(c, dest_key, secret_key, public_key, in_file, out_file)?
 				}
-				_ => {
-					unimplemented!();
+				Mode::Hybrid => {
+					let q = QuantumKeyQuad::new();
+					let c = ClassicalKeyQuad::new_hyb(
+						q.total_pub_size_bytes() as u64,
+						q.total_sec_size_bytes() as u64,
+					);
+					let temp_file = out_file.to_owned() + ".intermediate";
+					asy_encrypt_file(c, dest_key, secret_key, public_key, in_file, &temp_file)?;
+					asy_encrypt_file(q, dest_key, secret_key, public_key, &temp_file, out_file)?;
+					fs::remove_file(temp_file)?;
 				}
 			}
 		} else if let Some(dec) = public.subcommand_matches("dec") {
@@ -242,8 +256,15 @@ fn main() -> Result<()> {
 					let c = ClassicalKeyQuad::new();
 					asy_decrypt_file(c, from_key, secret_key, public_key, in_file, out_file)?
 				}
-				_ => {
-					unimplemented!();
+				Mode::Hybrid => {
+					let q = QuantumKeyQuad::new();
+					let c = ClassicalKeyQuad::new_hyb(
+						q.total_pub_size_bytes() as u64,
+						q.total_sec_size_bytes() as u64,
+					);
+					let temp_file = out_file.to_owned() + ".intermediate";
+					asy_decrypt_file(q, from_key, secret_key, public_key, in_file, &temp_file)?;
+					asy_decrypt_file(c, from_key, secret_key, public_key, &temp_file, out_file)?;
 				}
 			}
 		}
