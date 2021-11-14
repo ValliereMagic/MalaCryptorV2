@@ -6,7 +6,7 @@ fn test_hybrid() {
 	use sodiumoxide::crypto::{kx, sign};
 	use std::fs;
 	let q = QuantumKeyQuad::new();
-	let c = ClassicalKeyQuad::new_hyb(
+	let c = ClassicalKeyQuad::hyb_new(
 		q.total_pub_size_bytes() as u64,
 		q.total_sec_size_bytes() as u64,
 	);

@@ -65,7 +65,7 @@ pub fn asy_encrypt_file<
 	SigSecret,
 	Signature,
 >(
-	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
+	crypt: impl IKeyQuad<SigPublic, SigSecret, PublicKey, SecretKey>
 		+ IAsyCryptable<
 			SharedSecret,
 			CipherText,
@@ -81,11 +81,11 @@ pub fn asy_encrypt_file<
 	file_in_path: &str,
 	file_out_path: &str,
 ) -> Result<()> {
-	let dest_pkey = quad.get_pub(dest_pkey_path)?;
-	let skey = quad.get_sec(skey_path)?;
-	let our_pub = quad.get_pub(pkey_path)?;
+	let dest_pkey = crypt.get_pub(dest_pkey_path)?;
+	let skey = crypt.get_sec(skey_path)?;
+	let our_pub = crypt.get_pub(pkey_path)?;
 	// Derive the shared secret
-	let (ss, ct) = quad.create_shared_secret(&dest_pkey.1, &our_pub.1, &skey.1);
+	let (ss, ct) = crypt.create_shared_secret(&dest_pkey.1, &our_pub.1, &skey.1);
 	// Open up the files
 	let (mut file_in, mut file_out) = (
 		File::open(file_in_path)?,
@@ -98,22 +98,22 @@ pub fn asy_encrypt_file<
 	);
 	// If there is a ciphertext, write it out to the file
 	if let Some(ct) = ct {
-		file_out.write_all(quad.ciphertext_to_bytes(&ct))?;
+		file_out.write_all(crypt.ciphertext_to_bytes(&ct))?;
 	}
 	// Encrypt the source file with the shared secret, and write it to the out
 	// file
 	encrypt_file(
 		&mut file_in,
 		&mut file_out,
-		Key(quad.shared_secret_to_bytes(&ss)[0..KEYBYTES]
+		Key(crypt.shared_secret_to_bytes(&ss)[0..KEYBYTES]
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key")),
 	)?;
 	// Rewind the file back to the start
 	file_out.rewind()?;
 	// Digest, and sign the encrypted file
-	let signature = quad.sign(&digest(&mut file_out, None)?, &skey.0);
-	file_out.write_all(quad.signature_to_bytes(&signature))?;
+	let signature = crypt.sign(&digest(&mut file_out, None)?, &skey.0);
+	file_out.write_all(crypt.signature_to_bytes(&signature))?;
 	Ok(())
 }
 
@@ -126,7 +126,7 @@ pub fn asy_decrypt_file<
 	SigSecret,
 	Signature,
 >(
-	quad: impl IKeyQuad<SigPublic, PublicKey, SigSecret, SecretKey>
+	crypt: impl IKeyQuad<SigPublic, SigSecret, PublicKey, SecretKey>
 		+ IAsyCryptable<
 			SharedSecret,
 			CipherText,
@@ -143,9 +143,9 @@ pub fn asy_decrypt_file<
 	file_out_path: &str,
 ) -> Result<()> {
 	// Retrieve the required keys from files
-	let sender_pkey = quad.get_pub(sender_pub_key_path)?;
-	let skey = quad.get_sec(skey_path)?;
-	let our_pkey = quad.get_pub(pkey_path)?;
+	let sender_pkey = crypt.get_pub(sender_pub_key_path)?;
+	let skey = crypt.get_sec(skey_path)?;
+	let our_pkey = crypt.get_pub(pkey_path)?;
 	let (mut file_in, mut file_out) = (
 		OpenOptions::new()
 			.read(true)
@@ -154,17 +154,17 @@ pub fn asy_decrypt_file<
 		File::create(file_out_path)?,
 	);
 	// Seek to the beginning of the signature
-	let signature_offset = quad.signature_length();
+	let signature_offset = crypt.signature_length();
 	file_in.seek(SeekFrom::End(-signature_offset))?;
 	let mut buff = vec![0u8; signature_offset as usize];
 	file_in.read_exact(&mut buff)?;
-	let signature = quad.signature_from_bytes(&buff);
+	let signature = crypt.signature_from_bytes(&buff);
 	// Seek back to the beginning of the file
 	file_in.rewind()?;
 	// Digest the file up to the signature
 	let digest = digest(&mut file_in, Some(signature_offset))?;
 	// Check whether the signature matches
-	match quad.verify(&digest, &signature, &sender_pkey.0) {
+	match crypt.verify(&digest, &signature, &sender_pkey.0) {
 		true => (),
 		false => panic!("Signature is bad. Not attempting to decrypt file. Aborting."),
 	}
@@ -173,21 +173,21 @@ pub fn asy_decrypt_file<
 	// Rewind the file to the beginning
 	file_in.rewind()?;
 	// Read in the key exchange ciphertext if there is one
-	let ct = if quad.uses_cipher_text() {
-		let mut kem_ct_buff = vec![0u8; quad.ciphertext_length()];
+	let ct = if crypt.uses_cipher_text() {
+		let mut kem_ct_buff = vec![0u8; crypt.ciphertext_length()];
 		file_in.read_exact(&mut kem_ct_buff)?;
-		Some(quad.ciphertext_from_bytes(&kem_ct_buff))
+		Some(crypt.ciphertext_from_bytes(&kem_ct_buff))
 	} else {
 		None
 	};
 	// Derive the shared secret
-	let ss = quad.retrieve_shared_secret(&skey.1, &our_pkey.1, &sender_pkey.1, ct.as_ref());
+	let ss = crypt.retrieve_shared_secret(&skey.1, &our_pkey.1, &sender_pkey.1, ct.as_ref());
 	// Our file pointer is at the beginning of the encrypted file, and we have
 	// removed the signature from the end. Time to finally decrypt the file
 	decrypt_file(
 		&mut file_in,
 		&mut file_out,
-		Key(quad.shared_secret_to_bytes(&ss)[0..KEYBYTES]
+		Key(crypt.shared_secret_to_bytes(&ss)[0..KEYBYTES]
 			.try_into()
 			.expect("Unable to turn shared secret into symmetric key.")),
 	)?;

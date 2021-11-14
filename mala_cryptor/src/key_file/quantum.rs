@@ -121,17 +121,26 @@ pub type QuantumKeyQuad = KeyQuad<
 	QKeyExchange,
 >;
 
-impl QuantumKeyQuad {
-	pub fn new() -> QuantumKeyQuad {
+impl
+	IKeyQuadCreator<
+		sig::PublicKey,
+		sig::SecretKey,
+		kem::PublicKey,
+		kem::SecretKey,
+		Rc<QSignature>,
+		QKeyExchange,
+	> for QuantumKeyQuad
+{
+	fn new() -> QuantumKeyQuad {
 		let sig = Rc::new(QSignature::new(0, 0));
 		let sig_2 = Rc::clone(&sig);
-		KeyQuad::_new(sig, QKeyExchange::new(sig_2, 0, 0))
+		KeyQuad::create(sig, QKeyExchange::new(sig_2, 0, 0))
 	}
-	#[allow(dead_code)]
-	pub fn new_hyb(pub_offset: u64, sec_offset: u64) -> QuantumKeyQuad {
+
+	fn hyb_new(pub_offset: u64, sec_offset: u64) -> QuantumKeyQuad {
 		let sig = Rc::new(QSignature::new(pub_offset, sec_offset));
 		let sig_2 = Rc::clone(&sig);
-		KeyQuad::_new(sig, QKeyExchange::new(sig_2, pub_offset, sec_offset))
+		KeyQuad::create(sig, QKeyExchange::new(sig_2, pub_offset, sec_offset))
 	}
 }
 
