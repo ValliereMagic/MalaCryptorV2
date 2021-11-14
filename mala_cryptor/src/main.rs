@@ -14,7 +14,7 @@ fn main() -> Result<()> {
 	oqs::init();
 	sodiumoxide::init().expect("Unable to initialize libsodium.");
 	let matches = App::new("mala_cryptor")
-		.version("0.3.0")
+		.version("0.9.0")
 		.author("ValliereMagic")
 		.about("A command line file cryptography tool")
 		.setting(AppSettings::ArgRequiredElseHelp)
