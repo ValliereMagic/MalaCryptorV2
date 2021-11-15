@@ -3,7 +3,7 @@ mod enc_algos_in_use;
 mod global_constants;
 mod key_derivation;
 mod key_file;
-use clap::{App, AppSettings, SubCommand, crate_version};
+use clap::{crate_version, App, AppSettings, SubCommand};
 use enc::*;
 use key_file::*;
 use rpassword::prompt_password_stdout;
@@ -226,22 +226,23 @@ fn main() -> Result<()> {
 				get_info(enc, "destination")?;
 			match get_mode(enc)? {
 				Mode::Quantum => {
-					let q = QuantumKeyQuad::new();
-					asy_encrypt_file(q, dest_key, secret_key, public_key, in_file, out_file)?
+					let q = AsyCryptable::new(QuantumKeyQuad::new());
+					q.encrypt_file(dest_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Classical => {
-					let c = ClassicalKeyQuad::new();
-					asy_encrypt_file(c, dest_key, secret_key, public_key, in_file, out_file)?
+					let c = AsyCryptable::new(ClassicalKeyQuad::new());
+					c.encrypt_file(dest_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = ClassicalKeyQuad::hyb_new(
+					let c = AsyCryptable::new(ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
-					);
+					));
+					let q = AsyCryptable::new(q);
 					let temp_file = out_file.to_owned() + ".intermediate";
-					asy_encrypt_file(c, dest_key, secret_key, public_key, in_file, &temp_file)?;
-					asy_encrypt_file(q, dest_key, secret_key, public_key, &temp_file, out_file)?;
+					c.encrypt_file(dest_key, secret_key, public_key, in_file, &temp_file)?;
+					q.encrypt_file(dest_key, secret_key, public_key, &temp_file, out_file)?;
 					fs::remove_file(temp_file)?;
 				}
 			}
@@ -249,22 +250,23 @@ fn main() -> Result<()> {
 			let (from_key, secret_key, public_key, in_file, out_file) = get_info(dec, "from")?;
 			match get_mode(dec)? {
 				Mode::Quantum => {
-					let q = QuantumKeyQuad::new();
-					asy_decrypt_file(q, from_key, secret_key, public_key, in_file, out_file)?
+					let q = AsyCryptable::new(QuantumKeyQuad::new());
+					q.decrypt_file(from_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Classical => {
-					let c = ClassicalKeyQuad::new();
-					asy_decrypt_file(c, from_key, secret_key, public_key, in_file, out_file)?
+					let c = AsyCryptable::new(ClassicalKeyQuad::new());
+					c.decrypt_file(from_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = ClassicalKeyQuad::hyb_new(
+					let c = AsyCryptable::new(ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
-					);
+					));
+					let q = AsyCryptable::new(q);
 					let temp_file = out_file.to_owned() + ".intermediate";
-					asy_decrypt_file(q, from_key, secret_key, public_key, in_file, &temp_file)?;
-					asy_decrypt_file(c, from_key, secret_key, public_key, &temp_file, out_file)?;
+					q.decrypt_file(from_key, secret_key, public_key, in_file, &temp_file)?;
+					c.decrypt_file(from_key, secret_key, public_key, &temp_file, out_file)?;
 				}
 			}
 		}
