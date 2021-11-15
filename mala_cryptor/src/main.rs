@@ -226,20 +226,20 @@ fn main() -> Result<()> {
 				get_info(enc, "destination")?;
 			match get_mode(enc)? {
 				Mode::Quantum => {
-					let q = AsyCryptable::new(QuantumKeyQuad::new());
+					let q = AsyCryptor::new(QuantumKeyQuad::new());
 					q.encrypt_file(dest_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Classical => {
-					let c = AsyCryptable::new(ClassicalKeyQuad::new());
+					let c = AsyCryptor::new(ClassicalKeyQuad::new());
 					c.encrypt_file(dest_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = AsyCryptable::new(ClassicalKeyQuad::hyb_new(
+					let c = AsyCryptor::new(ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
 					));
-					let q = AsyCryptable::new(q);
+					let q = AsyCryptor::new(q);
 					let temp_file = out_file.to_owned() + ".intermediate";
 					c.encrypt_file(dest_key, secret_key, public_key, in_file, &temp_file)?;
 					q.encrypt_file(dest_key, secret_key, public_key, &temp_file, out_file)?;
@@ -250,20 +250,20 @@ fn main() -> Result<()> {
 			let (from_key, secret_key, public_key, in_file, out_file) = get_info(dec, "from")?;
 			match get_mode(dec)? {
 				Mode::Quantum => {
-					let q = AsyCryptable::new(QuantumKeyQuad::new());
+					let q = AsyCryptor::new(QuantumKeyQuad::new());
 					q.decrypt_file(from_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Classical => {
-					let c = AsyCryptable::new(ClassicalKeyQuad::new());
+					let c = AsyCryptor::new(ClassicalKeyQuad::new());
 					c.decrypt_file(from_key, secret_key, public_key, in_file, out_file)?
 				}
 				Mode::Hybrid => {
 					let q = QuantumKeyQuad::new();
-					let c = AsyCryptable::new(ClassicalKeyQuad::hyb_new(
+					let c = AsyCryptor::new(ClassicalKeyQuad::hyb_new(
 						q.total_pub_size_bytes() as u64,
 						q.total_sec_size_bytes() as u64,
 					));
-					let q = AsyCryptable::new(q);
+					let q = AsyCryptor::new(q);
 					let temp_file = out_file.to_owned() + ".intermediate";
 					q.decrypt_file(from_key, secret_key, public_key, in_file, &temp_file)?;
 					c.decrypt_file(from_key, secret_key, public_key, &temp_file, out_file)?;

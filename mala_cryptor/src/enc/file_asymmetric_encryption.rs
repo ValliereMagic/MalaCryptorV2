@@ -59,7 +59,7 @@ pub trait IAsyCryptable<
 	fn signature_from_bytes(&self, bytes: &[u8]) -> Signature;
 }
 
-pub struct AsyCryptable<
+pub struct AsyCryptor<
 	SharedSecret,
 	CipherText,
 	PublicKey,
@@ -100,7 +100,7 @@ impl<
 		Signature,
 		Cryptable,
 	>
-	AsyCryptable<
+	AsyCryptor<
 		SharedSecret,
 		CipherText,
 		PublicKey,
@@ -123,7 +123,7 @@ impl<
 {
 	pub fn new(
 		crypt: Cryptable,
-	) -> AsyCryptable<
+	) -> AsyCryptor<
 		SharedSecret,
 		CipherText,
 		PublicKey,
@@ -133,7 +133,7 @@ impl<
 		Signature,
 		Cryptable,
 	> {
-		AsyCryptable {
+		AsyCryptor {
 			crypt,
 			p1: PhantomData,
 			p2: PhantomData,
