@@ -276,6 +276,9 @@ fn application() -> Result<()> {
 }
 
 fn main() -> Result<()> {
+	// Run the application in a new thread, because the OQS algorithms that its
+	// using are heavy in stack utilization. Therefore, give the application a
+	// 32MiB stack size programmatically
 	match thread::Builder::new()
 		.stack_size(32 * 1024 * 1024)
 		.spawn(application)
