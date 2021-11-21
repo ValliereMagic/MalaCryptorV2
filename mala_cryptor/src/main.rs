@@ -9,8 +9,9 @@ use key_file::*;
 use rpassword::prompt_password_stdout;
 use std::fs;
 use std::io::{Error, ErrorKind, Result};
+use std::thread;
 
-fn main() -> Result<()> {
+fn application() -> Result<()> {
 	oqs::init();
 	sodiumoxide::init().expect("Unable to initialize libsodium.");
 	let matches = App::new("mala_cryptor")
@@ -272,4 +273,16 @@ fn main() -> Result<()> {
 		}
 	}
 	Ok(())
+}
+
+fn main() -> Result<()> {
+	match thread::Builder::new()
+		.stack_size(32 * 1024 * 1024)
+		.spawn(application)
+		.expect("Unable to Start execution thread with specified stack size.")
+		.join()
+	{
+		Ok(e) => e,
+		Err(_) => panic!("Unexpected thread error."),
+	}
 }
