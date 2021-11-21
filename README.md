@@ -2,9 +2,7 @@
 ## Running
 ```
 git clone https://github.com/ValliereMagic/MalaCryptorV2.git
-cd MalaCryptorV2
-git submodule update --init --recursive
-cd mala_cryptor
+cd MalaCryptorV2/mala_cryptor
 cargo build --release
 cargo run --release -- [OPTIONS]
 *or*
