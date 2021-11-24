@@ -15,12 +15,12 @@ use std::marker::PhantomData;
 // Generic functions required to asymmetrically encrypt a file using the
 // AsyCryptor struct.
 pub trait IAsyCryptable<
-	SharedSecret,
-	CipherText,
-	PublicKey,
-	SecretKey,
-	SigPublic,
-	SigSecret,
+	KEMSharedSecret,
+	KEMCipherText,
+	KEMPublicKey,
+	KEMSecretKey,
+	SigPublicKey,
+	SigSecretKey,
 	Signature,
 >
 {
@@ -32,27 +32,27 @@ pub trait IAsyCryptable<
 	// process
 	fn create_shared_secret(
 		&self,
-		dest_pkey: &PublicKey,
-		our_pkey: &PublicKey,
-		our_skey: &SecretKey,
-	) -> (SharedSecret, Option<CipherText>);
+		dest_pkey: &KEMPublicKey,
+		our_pkey: &KEMPublicKey,
+		our_skey: &KEMSecretKey,
+	) -> (KEMSharedSecret, Option<KEMCipherText>);
 	// Retrieve the shared secret on the "receiver" side... used during the
 	// decryption process
 	fn retrieve_shared_secret(
 		&self,
-		our_skey: &SecretKey,
-		our_pkey: &PublicKey,
-		sender_pkey: &PublicKey,
-		ciphertext: Option<&CipherText>,
-	) -> SharedSecret;
+		our_skey: &KEMSecretKey,
+		our_pkey: &KEMPublicKey,
+		sender_pkey: &KEMPublicKey,
+		ciphertext: Option<&KEMCipherText>,
+	) -> KEMSharedSecret;
 	// Serializers and Metadata
-	fn ciphertext_to_bytes<'a>(&self, ct: &'a CipherText) -> &'a [u8];
-	fn ciphertext_from_bytes(&self, bytes: &[u8]) -> CipherText;
+	fn ciphertext_to_bytes<'a>(&self, ct: &'a KEMCipherText) -> &'a [u8];
+	fn ciphertext_from_bytes(&self, bytes: &[u8]) -> KEMCipherText;
 	fn ciphertext_length(&self) -> usize;
-	fn shared_secret_to_bytes<'a>(&self, ss: &'a SharedSecret) -> &'a [u8];
+	fn shared_secret_to_bytes<'a>(&self, ss: &'a KEMSharedSecret) -> &'a [u8];
 	// Signature based functions
-	fn sign(&self, data: &[u8], key: &SigSecret) -> Signature;
-	fn verify(&self, message: &[u8], signature: &Signature, key: &SigPublic) -> bool;
+	fn sign(&self, data: &[u8], key: &SigSecretKey) -> Signature;
+	fn verify(&self, message: &[u8], signature: &Signature, key: &SigPublicKey) -> bool;
 	// Serializers and Metadata
 	fn signature_length(&self) -> i64;
 	fn signature_to_bytes<'a>(&self, signature: &'a Signature) -> &'a [u8];
@@ -60,76 +60,76 @@ pub trait IAsyCryptable<
 }
 
 pub struct AsyCryptor<
-	SharedSecret,
-	CipherText,
-	PublicKey,
-	SecretKey,
-	SigPublic,
-	SigSecret,
+	KEMSharedSecret,
+	KEMCipherText,
+	KEMPublicKey,
+	KEMSecretKey,
+	SigPublicKey,
+	SigSecretKey,
 	Signature,
 	Cryptable,
 > where
-	Cryptable: IKeyQuad<SigPublic, SigSecret, PublicKey, SecretKey>
+	Cryptable: IKeyQuad<SigPublicKey, SigSecretKey, KEMPublicKey, KEMSecretKey>
 		+ IAsyCryptable<
-			SharedSecret,
-			CipherText,
-			PublicKey,
-			SecretKey,
-			SigPublic,
-			SigSecret,
+			KEMSharedSecret,
+			KEMCipherText,
+			KEMPublicKey,
+			KEMSecretKey,
+			SigPublicKey,
+			SigSecretKey,
 			Signature,
 		>,
 {
 	crypt: Cryptable,
-	p1: PhantomData<SharedSecret>,
-	p2: PhantomData<CipherText>,
-	p3: PhantomData<PublicKey>,
-	p4: PhantomData<SecretKey>,
-	p5: PhantomData<SigPublic>,
-	p6: PhantomData<SigSecret>,
+	p1: PhantomData<KEMSharedSecret>,
+	p2: PhantomData<KEMCipherText>,
+	p3: PhantomData<KEMPublicKey>,
+	p4: PhantomData<KEMSecretKey>,
+	p5: PhantomData<SigPublicKey>,
+	p6: PhantomData<SigSecretKey>,
 	p7: PhantomData<Signature>,
 }
 
 impl<
-		SharedSecret,
-		CipherText,
-		PublicKey,
-		SecretKey,
-		SigPublic,
-		SigSecret,
+		KEMSharedSecret,
+		KEMCipherText,
+		KEMPublicKey,
+		KEMSecretKey,
+		SigPublicKey,
+		SigSecretKey,
 		Signature,
 		Cryptable,
 	>
 	AsyCryptor<
-		SharedSecret,
-		CipherText,
-		PublicKey,
-		SecretKey,
-		SigPublic,
-		SigSecret,
+		KEMSharedSecret,
+		KEMCipherText,
+		KEMPublicKey,
+		KEMSecretKey,
+		SigPublicKey,
+		SigSecretKey,
 		Signature,
 		Cryptable,
 	> where
-	Cryptable: IKeyQuad<SigPublic, SigSecret, PublicKey, SecretKey>
+	Cryptable: IKeyQuad<SigPublicKey, SigSecretKey, KEMPublicKey, KEMSecretKey>
 		+ IAsyCryptable<
-			SharedSecret,
-			CipherText,
-			PublicKey,
-			SecretKey,
-			SigPublic,
-			SigSecret,
+			KEMSharedSecret,
+			KEMCipherText,
+			KEMPublicKey,
+			KEMSecretKey,
+			SigPublicKey,
+			SigSecretKey,
 			Signature,
 		>,
 {
 	pub fn new(
 		crypt: Cryptable,
 	) -> AsyCryptor<
-		SharedSecret,
-		CipherText,
-		PublicKey,
-		SecretKey,
-		SigPublic,
-		SigSecret,
+		KEMSharedSecret,
+		KEMCipherText,
+		KEMPublicKey,
+		KEMSecretKey,
+		SigPublicKey,
+		SigSecretKey,
 		Signature,
 		Cryptable,
 	> {

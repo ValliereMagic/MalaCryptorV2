@@ -4,8 +4,8 @@ use libsodium_sys::*;
 use std::convert::TryInto;
 use std::ptr;
 
-pub type SodiumSignature = [u8; crypto_sign_BYTES as usize];
-pub type SodiumSessionKey = [u8; crypto_kx_SESSIONKEYBYTES as usize];
+type SodiumSignature = [u8; crypto_sign_BYTES as usize];
+type SodiumSessionKey = [u8; crypto_kx_SESSIONKEYBYTES as usize];
 
 trait Create {
 	fn default() -> Self;
