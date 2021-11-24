@@ -1,5 +1,4 @@
 use libsodium_sys::*;
-use std::ffi;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::Result;
@@ -13,7 +12,7 @@ pub fn gen(key_file_path: &str) -> Result<()> {
 	let mut key_file = File::create(&key_file_path)?;
 	let mut key = SodiumSymKey::default();
 	unsafe {
-		randombytes_buf(key.as_mut_ptr() as *mut ffi::c_void, key.len());
+		randombytes_buf(key.as_mut_ptr() as *mut _, key.len());
 	}
 	key_file.write_all(&key)?;
 	Ok(())

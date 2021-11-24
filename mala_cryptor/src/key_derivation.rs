@@ -1,6 +1,5 @@
 use super::key_file::SodiumSymKey;
 use libsodium_sys::*;
-use std::ffi;
 use std::ffi::CString;
 pub type SodiumSalt = [u8; crypto_pwhash_SALTBYTES as usize];
 
@@ -12,7 +11,7 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<SodiumSalt>) -> (SodiumSalt
 			None => {
 				let mut salt = SodiumSalt::default();
 				randombytes_buf(
-					salt.as_mut_ptr() as *mut ffi::c_void,
+					salt.as_mut_ptr() as *mut _,
 					crypto_pwhash_SALTBYTES as usize,
 				);
 				salt
