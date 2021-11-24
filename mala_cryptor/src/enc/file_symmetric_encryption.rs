@@ -1,6 +1,6 @@
 use crate::global_constants::*;
+use crate::key_derivation;
 use crate::key_derivation::key_derive_from_pass;
-use sodiumoxide::crypto::pwhash::Salt;
 use sodiumoxide::crypto::secretstream::{Header, Key, Stream, Tag, ABYTES, HEADERBYTES};
 use std::fs::File;
 use std::io::prelude::*;
@@ -14,8 +14,8 @@ pub fn encrypt_file_with_password(
 ) -> std::io::Result<()> {
 	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
 	let (salt, key) = key_derive_from_pass(password, None);
-	file_out.write_all(&salt.0)?;
-	encrypt_file(&mut file_in, &mut file_out, key)
+	file_out.write_all(&salt)?;
+	encrypt_file(&mut file_in, &mut file_out, Key(key))
 }
 
 pub fn decrypt_file_with_password(
@@ -24,10 +24,10 @@ pub fn decrypt_file_with_password(
 	password: &str,
 ) -> std::io::Result<()> {
 	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
-	let mut salt = Salt([0u8; 32]);
-	file_in.read_exact(&mut salt.0)?;
+	let mut salt = key_derivation::Salt::default();
+	file_in.read_exact(&mut salt)?;
 	let (_, key) = key_derive_from_pass(password, Some(salt));
-	decrypt_file(&mut file_in, &mut file_out, key)
+	decrypt_file(&mut file_in, &mut file_out, Key(key))
 }
 // Keyfile based functions
 pub fn encrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) -> Result<()> {

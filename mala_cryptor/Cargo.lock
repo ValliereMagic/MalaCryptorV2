@@ -240,6 +240,7 @@ name = "mala_cryptor"
 version = "1.2.0"
 dependencies = [
  "clap",
+ "libsodium-sys",
  "oqs",
  "rpassword",
  "sodiumoxide",
