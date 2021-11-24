@@ -271,20 +271,21 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_M
 	let mut state = State::new(Some(DIGEST_MAX), None).expect("Unable to create message state");
 	let mut buff = [0u8; CHUNK_SIZE];
 	// digest the file in chunks
-	loop {
+	let mut finalized = false;
+	while !finalized {
 		let res = chunked_reader.read_chunk(&mut buff)?;
-		let (chunk_size, breakout) = match res {
-			ChunkStatus::Body => (CHUNK_SIZE, false),
-			ChunkStatus::Final(c) => (c as usize, true),
+		let chunk_size = match res {
+			ChunkStatus::Body => CHUNK_SIZE,
+			ChunkStatus::Final(c) => {
+				finalized = true;
+				c as usize
+			}
 			ChunkStatus::Err(e) => panic!("{}", e),
 		};
 		// Add the bytes read to the digest
 		state
 			.update(&buff[..chunk_size])
 			.expect("Unable to update message state");
-		if breakout {
-			break;
-		}
 	}
 	Ok(
 		state.finalize().expect("Unable to finalize message digest")[0..DIGEST_MAX]
