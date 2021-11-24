@@ -24,7 +24,7 @@ pub fn decrypt_file_with_password(
 	password: &str,
 ) -> std::io::Result<()> {
 	let (mut file_in, mut file_out) = (File::open(file_in_path)?, File::create(file_out_path)?);
-	let mut salt = key_derivation::Salt::default();
+	let mut salt = key_derivation::SodiumSalt::default();
 	file_in.read_exact(&mut salt)?;
 	let (_, key) = key_derive_from_pass(password, Some(salt));
 	decrypt_file(&mut file_in, &mut file_out, Key(key))
