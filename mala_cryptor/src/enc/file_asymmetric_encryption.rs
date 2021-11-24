@@ -2,7 +2,7 @@ use super::*;
 use crate::chunked_file_reader::{ChunkStatus, ChunkedFileReader};
 use crate::global_constants::*;
 use crate::key_file::*;
-use sodiumoxide::crypto::generichash::{State, DIGEST_MAX};
+use libsodium_sys::*;
 use sodiumoxide::crypto::secretstream::{Key, KEYBYTES};
 use std::convert::TryInto;
 use std::fs;
@@ -12,6 +12,8 @@ use std::io::prelude::*;
 use std::io::Result;
 use std::io::SeekFrom;
 use std::marker::PhantomData;
+use std::mem;
+use std::ptr;
 
 // Generic functions required to asymmetrically encrypt a file using the
 // AsyCryptor struct.
@@ -256,7 +258,9 @@ impl<
 	}
 }
 
-fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_MAX]> {
+type Digest = [u8; crypto_generichash_BYTES_MAX as usize];
+
+fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<Digest> {
 	// Figure out how many chunks we will iterate through
 	let mut file_len: i64 = file.metadata().unwrap().len() as i64;
 	// If signature_avoid is present, decrease the file_len to remove the
@@ -268,7 +272,16 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_M
 		}
 	}
 	let mut chunked_reader = ChunkedFileReader::new(file, CHUNK_SIZE as u64, Some(file_len as u64));
-	let mut state = State::new(Some(DIGEST_MAX), None).expect("Unable to create message state");
+	let mut state: crypto_generichash_state = unsafe { mem::zeroed() };
+	unsafe {
+		// Initialize hash
+		crypto_generichash_init(
+			&mut state as *mut _ as *mut _,
+			ptr::null(),
+			0,
+			crypto_generichash_BYTES_MAX as usize,
+		);
+	}
 	let mut buff = [0u8; CHUNK_SIZE];
 	// digest the file in chunks
 	let mut finalized = false;
@@ -281,14 +294,23 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_M
 			}
 			ChunkStatus::Err(e) => panic!("{}", e),
 		};
-		// Add the bytes read to the digest
-		state
-			.update(&buff[..chunk_size])
-			.expect("Unable to update message state");
+		unsafe {
+			// Add the bytes read to the digest
+			crypto_generichash_update(
+				&mut state as *mut _ as *mut _,
+				&mut buff as *mut _ as *mut _,
+				chunk_size as _,
+			);
+		}
 	}
-	Ok(
-		state.finalize().expect("Unable to finalize message digest")[0..DIGEST_MAX]
-			.try_into()
-			.expect("Unable to finalize message digest"),
-	)
+	// Generate the final hash
+	let mut hash: Digest = unsafe { mem::zeroed() };
+	unsafe {
+		crypto_generichash_final(
+			&mut state as *mut _ as *mut _,
+			&mut hash as *mut _ as *mut _,
+			hash.len(),
+		);
+	}
+	Ok(hash)
 }
