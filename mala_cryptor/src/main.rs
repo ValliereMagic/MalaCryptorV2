@@ -13,7 +13,11 @@ use std::thread;
 
 fn application() -> Result<()> {
 	oqs::init();
-	sodiumoxide::init().expect("Unable to initialize libsodium.");
+	unsafe {
+		if libsodium_sys::sodium_init() < 0 {
+			panic!("Unable to initialize libsodium.");
+		}
+	}
 	let matches = App::new("mala_cryptor")
 		.version(crate_version!())
 		.author("ValliereMagic")
