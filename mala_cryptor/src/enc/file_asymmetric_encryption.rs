@@ -273,8 +273,7 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_M
 	// digest the file in chunks
 	let mut finalized = false;
 	while !finalized {
-		let res = chunked_reader.read_chunk(&mut buff)?;
-		let chunk_size = match res {
+		let chunk_size = match chunked_reader.read_chunk(&mut buff)? {
 			ChunkStatus::Body => CHUNK_SIZE,
 			ChunkStatus::Final(c) => {
 				finalized = true;
