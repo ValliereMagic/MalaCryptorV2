@@ -1,13 +1,12 @@
+use crate::key_file::SymKey;
 use libsodium_sys::*;
 use std::ffi;
 use std::ffi::CString;
-
-pub type Key = [u8; crypto_secretstream_xchacha20poly1305_KEYBYTES as usize];
 pub type Salt = [u8; crypto_pwhash_SALTBYTES as usize];
 
-pub fn key_derive_from_pass(pass: &str, salt: Option<Salt>) -> (Salt, Key) {
+pub fn key_derive_from_pass(pass: &str, salt: Option<Salt>) -> (Salt, SymKey) {
 	unsafe {
-		let mut key = Key::default();
+		let mut key = SymKey::default();
 		let mut salt = match salt {
 			Some(salt) => salt,
 			None => {
