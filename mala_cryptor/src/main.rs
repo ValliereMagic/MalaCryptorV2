@@ -3,6 +3,7 @@ mod enc_algos_in_use;
 mod global_constants;
 mod key_derivation;
 mod key_file;
+mod chunked_file_reader;
 use clap::{crate_version, App, AppSettings, SubCommand};
 use enc::*;
 use key_file::*;
