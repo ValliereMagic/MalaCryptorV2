@@ -1,21 +1,39 @@
-use sodiumoxide::crypto::{
-	pwhash, pwhash::Salt, pwhash::MEMLIMIT_SENSITIVE, pwhash::OPSLIMIT_SENSITIVE,
-	secretstream::Key, secretstream::KEYBYTES,
-};
+use libsodium_sys::*;
+use std::ffi;
+use std::ffi::CString;
+
+pub type Key = [u8; crypto_secretstream_xchacha20poly1305_KEYBYTES as usize];
+pub type Salt = [u8; crypto_pwhash_SALTBYTES as usize];
 
 pub fn key_derive_from_pass(pass: &str, salt: Option<Salt>) -> (Salt, Key) {
-	let mut key = Key([0u8; KEYBYTES]);
-	let salt = match salt {
-		Some(salt) => salt,
-		None => pwhash::gen_salt(),
-	};
-	pwhash::derive_key(
-		&mut key.0,
-		pass.as_bytes(),
-		&salt,
-		OPSLIMIT_SENSITIVE,
-		MEMLIMIT_SENSITIVE,
-	)
-	.expect("Unable to derive key from password");
-	(salt, key)
+	unsafe {
+		let mut key = Key::default();
+		let mut salt = match salt {
+			Some(salt) => salt,
+			None => {
+				let mut salt = Salt::default();
+				randombytes_buf(
+					salt.as_mut_ptr() as *mut ffi::c_void,
+					crypto_pwhash_SALTBYTES as usize,
+				);
+				salt
+			}
+		};
+		let c_repr_pass = CString::new(pass).unwrap();
+		let repr_ptr = c_repr_pass.as_ptr();
+		if (crypto_pwhash(
+			key.as_mut_ptr(),
+			crypto_secretstream_xchacha20poly1305_KEYBYTES as u64,
+			repr_ptr,
+			pass.len() as u64,
+			salt.as_mut_ptr(),
+			crypto_pwhash_OPSLIMIT_SENSITIVE as u64,
+			crypto_pwhash_MEMLIMIT_SENSITIVE as usize,
+			crypto_pwhash_ALG_DEFAULT as i32,
+		)) != 0
+		{
+			panic!("Error. Unable to derive symmetric key from password in key_derive. May be out of memory\n");
+		}
+		(salt, key)
+	}
 }
