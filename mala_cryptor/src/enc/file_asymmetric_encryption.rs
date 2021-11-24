@@ -1,4 +1,5 @@
 use super::*;
+use crate::chunked_file_reader::{ChunkStatus, ChunkedFileReader};
 use crate::global_constants::*;
 use crate::key_file::*;
 use sodiumoxide::crypto::generichash::{State, DIGEST_MAX};
@@ -266,23 +267,24 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<[u8; DIGEST_M
 			panic!("Digesting negative or zero-sized file.");
 		}
 	}
+	let mut chunked_reader = ChunkedFileReader::new(file, CHUNK_SIZE as u64, Some(file_len as u64));
 	let mut state = State::new(Some(DIGEST_MAX), None).expect("Unable to create message state");
 	let mut buff = [0u8; CHUNK_SIZE];
 	// digest the file in chunks
-	while file_len > 0 {
-		// Only read what's left in the file
-		let chunk_size = if file_len > CHUNK_SIZE as i64 {
-			CHUNK_SIZE
-		} else {
-			file_len as usize
+	loop {
+		let res = chunked_reader.read_chunk(&mut buff)?;
+		let (chunk_size, breakout) = match res {
+			ChunkStatus::Body => (CHUNK_SIZE, false),
+			ChunkStatus::Final(c) => (c as usize, true),
+			ChunkStatus::Err(e) => panic!("{}", e),
 		};
-		file.read_exact(&mut buff[0..chunk_size])?;
 		// Add the bytes read to the digest
 		state
-			.update(&buff[0..chunk_size])
+			.update(&buff[..chunk_size])
 			.expect("Unable to update message state");
-		// Remove the read bytes from file_len
-		file_len -= chunk_size as i64;
+		if breakout {
+			break;
+		}
 	}
 	Ok(
 		state.finalize().expect("Unable to finalize message digest")[0..DIGEST_MAX]
