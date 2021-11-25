@@ -1,3 +1,4 @@
+use crate::chunked_file_reader::*;
 use crate::global_constants::*;
 use crate::key_derivation;
 use crate::key_derivation::key_derive_from_pass;
@@ -43,22 +44,23 @@ pub fn decrypt_file_with_key(file_in_path: &str, file_out_path: &str, key: Key) 
 pub fn encrypt_file(file_in: &mut File, file_out: &mut File, key: Key) -> Result<()> {
 	let (mut stream, header) =
 		Stream::init_push(&key).expect("Unable to initialize encryption stream");
-	// Figure out how many chunks we will iterate through
-	let file_len = file_in.metadata().unwrap().len();
-	let num_iterations = f64::ceil(file_len as f64 / CHUNK_SIZE as f64) as usize;
 	// Write the stream header to the beginning of the encrypted file
 	file_out.write_all(&header.0)?;
 	let mut in_buff = [0u8; CHUNK_SIZE];
+	let mut chunked_reader = ChunkedFileReader::new(file_in, in_buff.len() as u64, None);
 	let mut out_buff: Vec<u8> = Vec::new();
-	for i in 0..num_iterations {
-		let read_bytes = file_in.read(&mut in_buff)?;
-		let tag = if i == num_iterations - 1 {
-			Tag::Final
-		} else {
-			Tag::Message
+	let mut finalized = false;
+	while !finalized {
+		let (tag, read_bytes) = match chunked_reader.read_chunk(&mut in_buff)? {
+			ChunkStatus::Body => (Tag::Message, in_buff.len()),
+			ChunkStatus::Final(s) => {
+				finalized = true;
+				(Tag::Final, s as usize)
+			}
+			ChunkStatus::Err(e) => panic!("{}", e),
 		};
 		stream
-			.push_to_vec(&in_buff[0..read_bytes], None, tag, &mut out_buff)
+			.push_to_vec(&in_buff[..read_bytes], None, tag, &mut out_buff)
 			.expect("Unable to push message stream");
 		file_out.write_all(&out_buff[..])?;
 	}
@@ -73,9 +75,22 @@ pub fn decrypt_file(file_in: &mut File, file_out: &mut File, key: Key) -> Result
 		Stream::init_pull(&header, &key).expect("Unable to initialize decryption stream");
 	let mut in_buff = [0u8; CHUNK_SIZE + ABYTES];
 	let mut out_buff: Vec<u8> = Vec::new();
-	while stream.is_not_finalized() {
-		let read_bytes = file_in.read(&mut in_buff)?;
-		match stream.pull_to_vec(&in_buff[0..read_bytes], None, &mut out_buff) {
+	// Find out how far into the file we are currently seeked, and subtract that
+	// from the total, to find out how much of the file is left.
+	let distance_into_file = file_in.metadata().unwrap().len() - file_in.stream_position().unwrap();
+	let mut chunked_reader =
+		ChunkedFileReader::new(file_in, in_buff.len() as u64, Some(distance_into_file));
+	let mut finalized = false;
+	while !finalized {
+		let read_bytes = match chunked_reader.read_chunk(&mut in_buff)? {
+			ChunkStatus::Body => in_buff.len(),
+			ChunkStatus::Final(s) => {
+				finalized = true;
+				s as usize
+			}
+			ChunkStatus::Err(e) => panic!("{}", e),
+		};
+		match stream.pull_to_vec(&in_buff[..read_bytes], None, &mut out_buff) {
 			Ok(_) => (),
 			Err(_) => {
 				return Err(Error::new(
