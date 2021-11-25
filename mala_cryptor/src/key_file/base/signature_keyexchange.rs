@@ -6,7 +6,7 @@
 // The offsets are used for hybrid combination keypairs. where multiple
 // different keys are stored in a single file to create a hybrid keypair. For
 // the best example is hybrid encryption used for mala_cryptor. A quantum
-// keypair and classical keypair are combined and used together. 
+// keypair and classical keypair are combined and used together.
 
 // If the outer quantum encryption algorithm is broken / is unsecure for
 // example, the data is still encrypted with the classical pair within; still

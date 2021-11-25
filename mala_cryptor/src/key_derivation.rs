@@ -10,10 +10,7 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<SodiumSalt>) -> (SodiumSalt
 			Some(salt) => salt,
 			None => {
 				let mut salt = SodiumSalt::default();
-				randombytes_buf(
-					salt.as_mut_ptr() as *mut _,
-					crypto_pwhash_SALTBYTES as usize,
-				);
+				randombytes_buf(salt.as_mut_ptr() as *mut _, crypto_pwhash_SALTBYTES as _);
 				salt
 			}
 		};
@@ -21,13 +18,13 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<SodiumSalt>) -> (SodiumSalt
 		let repr_ptr = c_repr_pass.as_ptr();
 		if (crypto_pwhash(
 			key.as_mut_ptr(),
-			crypto_secretstream_xchacha20poly1305_KEYBYTES as u64,
+			crypto_secretstream_xchacha20poly1305_KEYBYTES as _,
 			repr_ptr,
-			pass.len() as u64,
+			pass.len() as _,
 			salt.as_mut_ptr(),
-			crypto_pwhash_OPSLIMIT_SENSITIVE as u64,
-			crypto_pwhash_MEMLIMIT_SENSITIVE as usize,
-			crypto_pwhash_ALG_DEFAULT as i32,
+			crypto_pwhash_OPSLIMIT_SENSITIVE as _,
+			crypto_pwhash_MEMLIMIT_SENSITIVE as _,
+			crypto_pwhash_ALG_DEFAULT as _,
 		)) != 0
 		{
 			panic!("Error. Unable to derive symmetric key from password in key_derive. May be out of memory\n");

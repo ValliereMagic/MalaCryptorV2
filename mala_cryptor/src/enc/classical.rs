@@ -96,7 +96,7 @@ impl
 				sig.as_mut_ptr(),
 				ptr::null_mut(),
 				data.as_ptr(),
-				data.len() as u64,
+				data.len() as _,
 				key.as_ptr(),
 			);
 			sig
@@ -107,7 +107,7 @@ impl
 			match crypto_sign_verify_detached(
 				signature.as_ptr(),
 				message.as_ptr(),
-				message.len() as u64,
+				message.len() as _,
 				key.as_ptr(),
 			) {
 				0 => true,
