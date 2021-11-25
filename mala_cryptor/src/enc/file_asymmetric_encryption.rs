@@ -3,7 +3,6 @@ use crate::chunked_file_reader::{ChunkStatus, ChunkedFileReader};
 use crate::global_constants::*;
 use crate::key_file::*;
 use libsodium_sys::*;
-use sodiumoxide::crypto::secretstream::{Key, KEYBYTES};
 use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
@@ -181,9 +180,10 @@ impl<
 		encrypt_file(
 			&mut file_in,
 			&mut file_out,
-			Key(self.crypt.shared_secret_to_bytes(&ss)[0..KEYBYTES]
+			self.crypt.shared_secret_to_bytes(&ss)
+				[0..crypto_secretstream_xchacha20poly1305_KEYBYTES as usize]
 				.try_into()
-				.expect("Unable to turn shared secret into symmetric key")),
+				.expect("Unable to turn shared secret into symmetric key"),
 		)?;
 		// Rewind the file back to the start
 		file_out.rewind()?;
@@ -248,9 +248,10 @@ impl<
 		decrypt_file(
 			&mut file_in,
 			&mut file_out,
-			Key(self.crypt.shared_secret_to_bytes(&ss)[0..KEYBYTES]
+			self.crypt.shared_secret_to_bytes(&ss)
+				[0..crypto_secretstream_xchacha20poly1305_KEYBYTES as usize]
 				.try_into()
-				.expect("Unable to turn shared secret into symmetric key.")),
+				.expect("Unable to turn shared secret into symmetric key."),
 		)?;
 		// Remove the encrypted in-file; it was modified in the decryption procedure.
 		fs::remove_file(file_in_path)?;
@@ -276,10 +277,10 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<Digest> {
 	unsafe {
 		// Initialize hash
 		crypto_generichash_init(
-			&mut state as *mut _ as *mut _,
+			&mut state as *mut _,
 			ptr::null(),
 			0,
-			crypto_generichash_BYTES_MAX as usize,
+			crypto_generichash_BYTES_MAX as _,
 		);
 	}
 	let mut buff = [0u8; CHUNK_SIZE];
@@ -296,21 +297,13 @@ fn digest(file: &mut File, signature_avoid: Option<i64>) -> Result<Digest> {
 		};
 		unsafe {
 			// Add the bytes read to the digest
-			crypto_generichash_update(
-				&mut state as *mut _ as *mut _,
-				&mut buff as *mut _ as *mut _,
-				chunk_size as _,
-			);
+			crypto_generichash_update(&mut state as *mut _, buff.as_mut_ptr(), chunk_size as _);
 		}
 	}
 	// Generate the final hash
 	let mut hash: Digest = unsafe { mem::zeroed() };
 	unsafe {
-		crypto_generichash_final(
-			&mut state as *mut _ as *mut _,
-			&mut hash as *mut _ as *mut _,
-			hash.len(),
-		);
+		crypto_generichash_final(&mut state as *mut _, hash.as_mut_ptr(), hash.len());
 	}
 	Ok(hash)
 }

@@ -1,13 +1,12 @@
 [package]
 name = "mala_cryptor"
-version = "1.2.0"
+version = "2.0.0"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsodium-sys = { version = "0.2.7"}
-sodiumoxide = { version = "0.2.7", default-features = false, features = ["std"] }
+libsodium-sys-stable = { version = "1.19.19", default-features = false, features = ["minimal"] }
 oqs = { version = "0.7.0", default-features = false, features = ["classic_mceliece", "dilithium"] }
 clap = "2.33.3"
 rpassword = "5.0.1"
