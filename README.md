@@ -125,6 +125,6 @@ OPTIONS:
     -s, --secret_key <Input FILENAME>     specify the secret key to sign with
 ```
 
-unimplemented!();
+undocumented!();
 
 ___
