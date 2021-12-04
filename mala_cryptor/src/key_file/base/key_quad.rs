@@ -33,6 +33,7 @@ where
 	SigKeyPair: IKeyPair<SigPub, SigSec>,
 	KemKeyPair: IKeyPair<KemPub, KemSec>,
 {
+	#[allow(clippy::new_ret_no_self)]
 	fn new() -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>;
 	fn hyb_new(
 		pub_offset: u64,

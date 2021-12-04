@@ -74,7 +74,7 @@ fn application() -> Result<()> {
 						.setting(AppSettings::ArgRequiredElseHelp)
 						.about("Encrypt a file using a public key [and sign]")
 						.args_from_usage(
-							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair to generate: q: quantum, c: classical, h: hybrid (both, in cascade)'
+							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair is being used: q: quantum, c: classical, h: hybrid (both, in cascade)'
 							-d, --destination=[Input FILENAME] 'specify the public key of the recipient'
 							-s, --secret_key=[Input FILENAME] 'specify the secret key to sign with'
 							-p, --public_key=[Input FILENAME] 'specify our public key for key exchange'
@@ -87,12 +87,32 @@ fn application() -> Result<()> {
 						.setting(AppSettings::ArgRequiredElseHelp)
 						.about("Decrypt a file using a public key [and verify signature]")
 						.args_from_usage(
-							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair to generate: q: quantum, c: classical, h: hybrid (both, in cascade)'
+							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair is being used: q: quantum, c: classical, h: hybrid (both, in cascade)'
 							-f, --from=[Input FILENAME] 'specify the public key of the sender [to verify the signature]'
 							-s, --secret_key=[Input FILENAME] 'specify the secret key to decrypt the file'
 							-p, --public_key=[Input FILENAME] 'specify our public key for key exchange'
 							-i, --in_file=[FILENAME] 'specify a file to decrypt'
 							-o, --out_file=[FILENAME] 'specify an output filename'"
+						)
+				)
+				// Signing
+				.subcommand(SubCommand::with_name("sig")
+						.setting(AppSettings::ArgRequiredElseHelp)
+						.about("Sign a file with a secret key")
+						.args_from_usage(
+							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair is being used: q: quantum, c: classical, h: hybrid (both, in cascade)'
+							-s, --secret_key=[Input FILENAME] 'specify the secret key to sign the file with'
+							-i, --in_file=[FILENAME] 'specify a file to sign. [The signature will be appended to the file IN-PLACE]'"
+						)
+				)
+				// Verifying
+				.subcommand(SubCommand::with_name("ver")
+						.setting(AppSettings::ArgRequiredElseHelp)
+						.about("Verify a file using a public key")
+						.args_from_usage(
+							"-m, --mode=['q', 'c', 'h'] 'specify type of keypair is being used: q: quantum, c: classical, h: hybrid (both, in cascade)'
+							-p, --public_key=[Input FILENAME] 'specify the public key of the sender [to verify the signature with]
+							-i, --in_file=[FILENAME] 'specify a file to verify. [The signature will be removed from the end of the file after verification]'"
 						)
 				)
 		)
@@ -272,7 +292,53 @@ fn application() -> Result<()> {
 					let q = AsyCryptor::new(q);
 					let temp_file = out_file.to_owned() + ".intermediate";
 					q.decrypt_file(from_key, secret_key, public_key, in_file, &temp_file)?;
-					c.decrypt_file(from_key, secret_key, public_key, &temp_file, out_file)?;
+					c.decrypt_file(from_key, secret_key, public_key, &temp_file, out_file)?
+				}
+			}
+		} else if let Some(sig) = public.subcommand_matches("sig") {
+			let secret_key = get_key(sig, "secret_key", "A Secret Key file must be specified.")?;
+			let in_file = get_key(sig, "in_file", "Input file must be specified")?;
+			match get_mode(sig)? {
+				Mode::Quantum => {
+					let q = AsyCryptor::new(QuantumKeyQuad::new());
+					q.sign_file(secret_key, in_file)?
+				}
+				Mode::Classical => {
+					let c = AsyCryptor::new(ClassicalKeyQuad::new());
+					c.sign_file(secret_key, in_file)?
+				}
+				Mode::Hybrid => {
+					let q = QuantumKeyQuad::new();
+					let c = AsyCryptor::new(ClassicalKeyQuad::hyb_new(
+						q.total_pub_size_bytes() as u64,
+						q.total_sec_size_bytes() as u64,
+					));
+					let q = AsyCryptor::new(q);
+					c.sign_file(secret_key, in_file)?;
+					q.sign_file(secret_key, in_file)?
+				}
+			}
+		} else if let Some(ver) = public.subcommand_matches("ver") {
+			let public_key = get_key(ver, "public_key", "A Public Key file must be specified.")?;
+			let in_file = get_key(ver, "in_file", "Input file must be specified")?;
+			match get_mode(ver)? {
+				Mode::Quantum => {
+					let q = AsyCryptor::new(QuantumKeyQuad::new());
+					q.verify_file(public_key, in_file)?
+				}
+				Mode::Classical => {
+					let c = AsyCryptor::new(ClassicalKeyQuad::new());
+					c.verify_file(public_key, in_file)?
+				}
+				Mode::Hybrid => {
+					let q = QuantumKeyQuad::new();
+					let c = AsyCryptor::new(ClassicalKeyQuad::hyb_new(
+						q.total_pub_size_bytes() as u64,
+						q.total_sec_size_bytes() as u64,
+					));
+					let q = AsyCryptor::new(q);
+					q.verify_file(public_key, in_file)?;
+					c.verify_file(public_key, in_file)?
 				}
 			}
 		}
