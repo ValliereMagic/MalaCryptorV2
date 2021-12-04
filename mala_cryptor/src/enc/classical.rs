@@ -104,15 +104,15 @@ impl
 	}
 	fn verify(&self, message: &[u8], signature: &SodiumSignature, key: &SodiumSigPub) -> bool {
 		unsafe {
-			match crypto_sign_verify_detached(
-				signature.as_ptr(),
-				message.as_ptr(),
-				message.len() as _,
-				key.as_ptr(),
-			) {
-				0 => true,
-				_ => false,
-			}
+			matches!(
+				crypto_sign_verify_detached(
+					signature.as_ptr(),
+					message.as_ptr(),
+					message.len() as _,
+					key.as_ptr(),
+				),
+				0
+			)
 		}
 	}
 	// Serializers and Metadata

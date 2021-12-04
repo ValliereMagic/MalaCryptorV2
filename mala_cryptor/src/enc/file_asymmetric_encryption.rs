@@ -146,6 +146,42 @@ impl<
 			p7: PhantomData,
 		}
 	}
+
+	pub fn sign_file(&self, skey_path: &str, file_path: &str) -> Result<()> {
+		let skey = self.crypt.get_sec(skey_path)?;
+		// Open up the files
+		let mut file = OpenOptions::new().read(true).write(true).open(file_path)?;
+		// Digest, and sign the encrypted file
+		let signature = self.crypt.sign(&digest(&mut file, None)?, &skey.0);
+		file.write_all(self.crypt.signature_to_bytes(&signature))?;
+		Ok(())
+	}
+
+	pub fn verify_file(&self, sender_pub_key_path: &str, file_path: &str) -> Result<()> {
+		let sender_pkey = self.crypt.get_pub(sender_pub_key_path)?;
+		let mut file = OpenOptions::new().read(true).write(true).open(file_path)?;
+		// Seek to the beginning of the signature
+		let signature_offset = self.crypt.signature_length();
+		file.seek(SeekFrom::End(-signature_offset))?;
+		let mut buff = vec![0u8; signature_offset as usize];
+		file.read_exact(&mut buff)?;
+		let signature = self.crypt.signature_from_bytes(&buff);
+		// Seek back to the beginning of the file
+		file.rewind()?;
+		// Digest the file up to the signature
+		let digest = digest(&mut file, Some(signature_offset))?;
+		// Check whether the signature matches
+		match self.crypt.verify(&digest, &signature, &sender_pkey.0) {
+			true => (),
+			false => {
+				panic!("Signature is bad. Not attempting to continue working with file. Aborting.")
+			}
+		}
+		// Truncate the signature from the end of the file
+		file.set_len((file.metadata().unwrap().len() as i64 - signature_offset) as u64)?;
+		Ok(())
+	}
+
 	pub fn encrypt_file(
 		&self,
 		dest_pkey_path: &str,
@@ -185,12 +221,7 @@ impl<
 				.try_into()
 				.expect("Unable to turn shared secret into symmetric key"),
 		)?;
-		// Rewind the file back to the start
-		file_out.rewind()?;
-		// Digest, and sign the encrypted file
-		let signature = self.crypt.sign(&digest(&mut file_out, None)?, &skey.0);
-		file_out.write_all(self.crypt.signature_to_bytes(&signature))?;
-		Ok(())
+		self.sign_file(skey_path, file_out_path)
 	}
 
 	pub fn decrypt_file(
@@ -201,6 +232,8 @@ impl<
 		file_in_path: &str,
 		file_out_path: &str,
 	) -> Result<()> {
+		// Verify the file is from the sender
+		self.verify_file(sender_pub_key_path, file_in_path)?;
 		// Retrieve the required keys from files
 		let sender_pkey = self.crypt.get_pub(sender_pub_key_path)?;
 		let skey = self.crypt.get_sec(skey_path)?;
@@ -212,25 +245,6 @@ impl<
 				.open(file_in_path)?,
 			File::create(file_out_path)?,
 		);
-		// Seek to the beginning of the signature
-		let signature_offset = self.crypt.signature_length();
-		file_in.seek(SeekFrom::End(-signature_offset))?;
-		let mut buff = vec![0u8; signature_offset as usize];
-		file_in.read_exact(&mut buff)?;
-		let signature = self.crypt.signature_from_bytes(&buff);
-		// Seek back to the beginning of the file
-		file_in.rewind()?;
-		// Digest the file up to the signature
-		let digest = digest(&mut file_in, Some(signature_offset))?;
-		// Check whether the signature matches
-		match self.crypt.verify(&digest, &signature, &sender_pkey.0) {
-			true => (),
-			false => panic!("Signature is bad. Not attempting to decrypt file. Aborting."),
-		}
-		// Truncate the signature from the end of the file
-		file_in.set_len((file_in.metadata().unwrap().len() as i64 - signature_offset) as u64)?;
-		// Rewind the file to the beginning
-		file_in.rewind()?;
 		// Read in the key exchange ciphertext if there is one
 		let ct = if self.crypt.uses_cipher_text() {
 			let mut kem_ct_buff = vec![0u8; self.crypt.ciphertext_length()];

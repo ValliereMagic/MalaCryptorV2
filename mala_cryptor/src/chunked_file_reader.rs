@@ -52,12 +52,9 @@ impl<'file> ChunkedFileReader<'file> {
 			self.file.read_exact(&mut buff[..chunk_size as usize])?;
 			// Add chunk_size bytes to the bytes_read counter for the next call
 			self.bytes_read += chunk_size;
-			match result {
+			if let ChunkStatus::Final(_) = result {
 				// Make sure we have read in all the bytes we are supposed to.
-				ChunkStatus::Final(_) => {
-					assert_eq!(self.bytes_read, self.file_len);
-				}
-				_ => (),
+				assert_eq!(self.bytes_read, self.file_len);
 			}
 			Ok(result)
 		}

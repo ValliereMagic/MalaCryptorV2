@@ -167,7 +167,7 @@ pub fn decrypt_file(file_in: &mut File, file_out: &mut File, key: SodiumSymKey) 
 		} {
 			0 => {
 				if tag == crypto_secretstream_xchacha20poly1305_TAG_FINAL as u8 {
-					assert_eq!(finalized, true);
+					assert!(finalized);
 				} else {
 					assert_eq!(tag, crypto_secretstream_xchacha20poly1305_TAG_MESSAGE as u8);
 				}
