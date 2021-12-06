@@ -16,7 +16,7 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<SodiumSalt>) -> (SodiumSalt
 		};
 		let c_repr_pass = CString::new(pass).unwrap();
 		let repr_ptr = c_repr_pass.as_ptr();
-		if (crypto_pwhash(
+		if crypto_pwhash(
 			key.as_mut_ptr(),
 			crypto_secretstream_xchacha20poly1305_KEYBYTES as _,
 			repr_ptr,
@@ -25,7 +25,7 @@ pub fn key_derive_from_pass(pass: &str, salt: Option<SodiumSalt>) -> (SodiumSalt
 			crypto_pwhash_OPSLIMIT_SENSITIVE as _,
 			crypto_pwhash_MEMLIMIT_SENSITIVE as _,
 			crypto_pwhash_ALG_DEFAULT as _,
-		)) != 0
+		) != 0
 		{
 			panic!("Error. Unable to derive symmetric key from password in key_derive. May be out of memory\n");
 		}
