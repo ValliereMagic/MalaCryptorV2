@@ -199,4 +199,58 @@ cleartext_file_out -p our_public_quantum_key -s our_secret_quantum_key`
 `mala_cryptor pub dec -f pub_classical_key_of_sender -i file_to_decrypt -m c
 -o cleartext_file_out -p our_public_classical_key -s our_secret_classical_key`
 
+
+### Signing files (Note, this is done IN-PLACE on the existing file)
+```
+username@host:~$ mala_cryptor pub sig
+mala_cryptor-pub-sig 
+Sign a file with a secret key
+
+USAGE:
+    mala_cryptor pub sig [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -i, --in_file <FILENAME>             specify a file to sign. [The signature will be appended to the file IN-PLACE]
+    -m, --mode <'q', 'c', 'h'>           specify type of keypair is being used: q: quantum, c: classical, h: hybrid
+                                         (both, in cascade)
+    -s, --secret_key <Input FILENAME>    specify the secret key to sign the file with
+```
+#### Hybrid
+`mala_cryptor pub sig -i file_to_sign -m h -s hybrid_secret_key_file`
+#### Quantum
+`mala_cryptor pub sig -i file_to_sign -m q -s quantum_secret_key_file`
+#### Classical
+`mala_cryptor pub sig -i file_to_sign -m c -s classical_secret_key_file`
+
+### Verifying files (Note, this is done IN-PLACE on the existing file)
+```
+username@host:~$ mala_cryptor pub ver
+mala_cryptor-pub-ver 
+Verify a file using a public key
+
+USAGE:
+    mala_cryptor pub ver [OPTIONS]
+
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
+
+OPTIONS:
+    -i, --in_file <FILENAME>             specify a file to verify. [The signature will be removed from the end of the
+                                         file after verification]
+    -m, --mode <'q', 'c', 'h'>           specify type of keypair is being used: q: quantum, c: classical, h: hybrid
+                                         (both, in cascade)
+    -p, --public_key <Input FILENAME>    specify the public key of the sender [to verify the signature with
+```
+#### Hybrid
+`mala_cryptor pub ver -i file_to_verify -m h -p hybrid_public_key_file`
+#### Quantum
+`mala_cryptor pub ver -i file_to_verify -m q -p quantum_public_key_file`
+#### Classical
+`mala_cryptor pub ver -i file_to_verify -m c -p classical_public_key_file`
+
 ___
