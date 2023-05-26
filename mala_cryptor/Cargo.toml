@@ -6,7 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-libsodium-sys-stable = { version = "1.19.19", default-features = false, features = ["minimal"] }
-oqs = { version = "0.7.0", default-features = false, features = ["classic_mceliece", "dilithium"] }
-clap = "2.33.3"
-rpassword = "5.0.1"
+libsodium-sys-stable = { version = "1", default-features = false, features = ["minimal"] }
+oqs = { version = "0.7", default-features = false, features = ["kyber", "dilithium"] }
+clap = "2"
+rpassword = "7"

@@ -7,7 +7,7 @@ mod key_file;
 use clap::{crate_version, App, AppSettings, SubCommand};
 use enc::*;
 use key_file::*;
-use rpassword::prompt_password_stdout;
+use rpassword::prompt_password;
 use std::fs;
 use std::io::{Error, ErrorKind, Result};
 use std::thread;
@@ -155,7 +155,7 @@ fn application() -> Result<()> {
 				encrypt_file_with_key(in_file, out_file, symmetric::get(key_file_path)?)?;
 			} else {
 				// Get the password from the user
-				let pass = prompt_password_stdout("Enter the file password: ").unwrap();
+				let pass = prompt_password("Enter the file password: ").unwrap();
 				encrypt_file_with_password(in_file, out_file, &pass)?;
 			}
 		// User is decrypting a file
@@ -165,7 +165,7 @@ fn application() -> Result<()> {
 				decrypt_file_with_key(in_file, out_file, symmetric::get(key_file_path)?)?;
 			} else {
 				// Get the password from the user
-				let pass = prompt_password_stdout("Enter the file password: ").unwrap();
+				let pass = prompt_password("Enter the file password: ").unwrap();
 				decrypt_file_with_password(in_file, out_file, &pass)?;
 			}
 		// User is generating a keyfile
