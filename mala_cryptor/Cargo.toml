@@ -8,5 +8,5 @@ edition = "2021"
 [dependencies]
 libsodium-sys-stable = { version = "1", default-features = false, features = ["minimal"] }
 oqs = { version = "0.7", default-features = false, features = ["kyber", "dilithium"] }
-clap = "2"
-rpassword = "7"
+clap = { version = "3", features = ["cargo"] }
+rpassword = {git = "https://github.com/ValliereMagic/rpassword.git"}
