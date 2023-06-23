@@ -1,7 +1,7 @@
 use oqs::kem;
 use oqs::sig;
 
-pub const QKEM_ALGO: kem::Algorithm = kem::Algorithm::Kyber1024_90s;
+pub const QKEM_ALGO: kem::Algorithm = kem::Algorithm::Kyber1024;
 pub const QSIGN_ALGO: sig::Algorithm = sig::Algorithm::Dilithium5;
 
 // Acquire the active signature or key exchange algorithm for OQS. Defined in
