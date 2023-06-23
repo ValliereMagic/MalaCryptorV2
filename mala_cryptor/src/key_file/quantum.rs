@@ -20,7 +20,9 @@ impl QSignature {
 	}
 }
 // Adapt QSignature to the Keypair trait
-impl IKeyPair<sig::PublicKey, sig::SecretKey> for Rc<QSignature> {
+impl IKeyPair for Rc<QSignature> {
+	type Pub = sig::PublicKey;
+	type Sec = sig::SecretKey;
 	fn gen_keypair(&self) -> (sig::PublicKey, sig::SecretKey) {
 		self.sig
 			.keypair()
@@ -74,7 +76,9 @@ impl QKeyExchange {
 	}
 }
 
-impl<'a> IKeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
+impl<'a> IKeyPair for QKeyExchange {
+	type Pub = kem::PublicKey;
+	type Sec = kem::SecretKey;
 	fn gen_keypair(&self) -> (kem::PublicKey, kem::SecretKey) {
 		self.kem
 			.keypair()
@@ -113,20 +117,12 @@ impl<'a> IKeyPair<kem::PublicKey, kem::SecretKey> for QKeyExchange {
 }
 
 pub type QuantumKeyQuad = KeyQuad<
-	sig::PublicKey,
-	sig::SecretKey,
-	kem::PublicKey,
-	kem::SecretKey,
 	Rc<QSignature>,
 	QKeyExchange,
 >;
 
 impl
 	IKeyQuadCreator<
-		sig::PublicKey,
-		sig::SecretKey,
-		kem::PublicKey,
-		kem::SecretKey,
 		Rc<QSignature>,
 		QKeyExchange,
 	> for QuantumKeyQuad

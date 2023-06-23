@@ -1,6 +1,5 @@
 use super::key_pair::*;
 use std::io::Result;
-use std::marker::PhantomData;
 
 // Generic functions representing the set of 2 KeyPairs used for asymmetric
 // encryption in mala_cryptor `KeyQuad`; which are a Signature Pair, and
@@ -11,118 +10,106 @@ use std::marker::PhantomData;
 // the future with very little code change. [re-implementing KeyPair for each of
 // them]
 
-pub trait IKeyQuad<SigPub, SigSec, KemPub, KemSec> {
-	// Generate a public and private keyquad composed of a signature public and
-	// secret pair as well as a key exchange public and secret pair
-	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
-	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, KemPub)>;
-	fn get_sec(&self, skey_path: &str) -> Result<(SigSec, KemSec)>;
-	// The total size that the file will be for each of the key parts. This is
-	// used for composition key files where multiple different keypairs are
-	// stored in the same file.
-	fn total_pub_size_bytes(&self) -> usize;
-	fn total_sec_size_bytes(&self) -> usize;
+pub trait IKeyQuad {
+    type SigPub;
+    type SigSec;
+    type KemPub;
+    type KemSec;
+    // Generate a public and private keyquad composed of a signature public and
+    // secret pair as well as a key exchange public and secret pair
+    fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()>;
+    // Retrieve the public portion of the keypairs from the file paths passed
+    fn get_pub(&self, pkey_path: &str) -> Result<(Self::SigPub, Self::KemPub)>;
+    fn get_sec(&self, skey_path: &str) -> Result<(Self::SigSec, Self::KemSec)>;
+    // The total size that the file will be for each of the key parts. This is
+    // used for composition key files where multiple different keypairs are
+    // stored in the same file.
+    fn total_pub_size_bytes(&self) -> usize;
+    fn total_sec_size_bytes(&self) -> usize;
 }
 
 // Specifies the standard way of creating a KeyQuad. A variant that has an
 // offset for hybrid encryption where multiple rounds are done; and a basic
 // variant with offsets of 0.
-pub trait IKeyQuadCreator<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+pub trait IKeyQuadCreator<SigKeyPair, KemKeyPair>
 where
-	SigKeyPair: IKeyPair<SigPub, SigSec>,
-	KemKeyPair: IKeyPair<KemPub, KemSec>,
+    SigKeyPair: IKeyPair,
+    KemKeyPair: IKeyPair,
 {
-	#[allow(clippy::new_ret_no_self)]
-	fn new() -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>;
-	fn hyb_new(
-		pub_offset: u64,
-		sec_offset: u64,
-	) -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>;
+    #[allow(clippy::new_ret_no_self)]
+    fn new() -> KeyQuad<SigKeyPair, KemKeyPair>;
+    fn hyb_new(pub_offset: u64, sec_offset: u64) -> KeyQuad<SigKeyPair, KemKeyPair>;
 }
 
 // Generic KeyQuad struct extensible by any specific implementation
-pub struct KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+pub struct KeyQuad<SigKeyPair, KemKeyPair>
 where
-	SigKeyPair: IKeyPair<SigPub, SigSec>,
-	KemKeyPair: IKeyPair<KemPub, KemSec>,
+    SigKeyPair: IKeyPair,
+    KemKeyPair: IKeyPair,
 {
-	sign: SigKeyPair,
-	kem: KemKeyPair,
-	phantom_a: PhantomData<SigPub>,
-	phantom_b: PhantomData<SigSec>,
-	phantom_c: PhantomData<KemPub>,
-	phantom_d: PhantomData<KemSec>,
+    sign: SigKeyPair,
+    kem: KemKeyPair,
 }
 
 // Base creation of a KeyQuad. Used by specific implementations to bootstrap
 // themselves
-impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
-	KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+impl<SigKeyPair, KemKeyPair> KeyQuad<SigKeyPair, KemKeyPair>
 where
-	SigKeyPair: IKeyPair<SigPub, SigSec>,
-	KemKeyPair: IKeyPair<KemPub, KemSec>,
+    SigKeyPair: IKeyPair,
+    KemKeyPair: IKeyPair,
 {
-	pub fn create(
-		sign: SigKeyPair,
-		kem: KemKeyPair,
-	) -> KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair> {
-		KeyQuad {
-			sign,
-			kem,
-			phantom_a: PhantomData,
-			phantom_b: PhantomData,
-			phantom_c: PhantomData,
-			phantom_d: PhantomData,
-		}
-	}
+    pub fn create(sign: SigKeyPair, kem: KemKeyPair) -> KeyQuad<SigKeyPair, KemKeyPair> {
+        KeyQuad { sign, kem }
+    }
 }
 
 // Universal implementation of the different operations that a KeyQuad needs to
 // perform
-impl<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
-	IKeyQuad<SigPub, SigSec, KemPub, KemSec>
-	for KeyQuad<SigPub, SigSec, KemPub, KemSec, SigKeyPair, KemKeyPair>
+impl<SigKeyPair, KemKeyPair> IKeyQuad for KeyQuad<SigKeyPair, KemKeyPair>
 where
-	SigKeyPair: IKeyPair<SigPub, SigSec>,
-	KemKeyPair: IKeyPair<KemPub, KemSec>,
+    SigKeyPair: IKeyPair,
+    KemKeyPair: IKeyPair,
 {
-	// Generate a public and private keyquad composed of a signature public and
-	// secret pair as well as a key exchange public and secret pair
-	fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
-		gen(&self.sign, pkey_path, skey_path)?;
-		gen(&self.kem, pkey_path, skey_path)
-	}
-	// Retrieve the public portion of the keypairs from the file paths passed
-	fn get_pub(&self, pkey_path: &str) -> Result<(SigPub, KemPub)> {
-		let sig = match get(KeyVariant::Public(()), &self.sign, pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Public(()), &self.kem, pkey_path)? {
-			KeyVariant::Public(p) => p,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	fn get_sec(&self, skey_path: &str) -> Result<(SigSec, KemSec)> {
-		let sig = match get(KeyVariant::Secret(()), &self.sign, skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		let kem = match get(KeyVariant::Secret(()), &self.kem, skey_path)? {
-			KeyVariant::Secret(s) => s,
-			_ => unreachable!(),
-		};
-		Ok((sig, kem))
-	}
-	// The total size that the file will be for each of the key parts. This is
-	// used for composition key files where multiple different keypairs are
-	// stored in the same file.
-	fn total_pub_size_bytes(&self) -> usize {
-		self.sign.pub_key_len() + self.kem.pub_key_len()
-	}
-	fn total_sec_size_bytes(&self) -> usize {
-		self.sign.sec_key_len() + self.kem.sec_key_len()
-	}
+    type SigPub = SigKeyPair::Pub;
+    type SigSec = SigKeyPair::Sec;
+    type KemPub = KemKeyPair::Pub;
+    type KemSec = KemKeyPair::Sec;
+    // Generate a public and private keyquad composed of a signature public and
+    // secret pair as well as a key exchange public and secret pair
+    fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
+        gen(&self.sign, pkey_path, skey_path)?;
+        gen(&self.kem, pkey_path, skey_path)
+    }
+    // Retrieve the public portion of the keypairs from the file paths passed
+    fn get_pub(&self, pkey_path: &str) -> Result<(Self::SigPub, Self::KemPub)> {
+        let sig = match get(KeyVariant::Pub, &self.sign, pkey_path)? {
+            KeyVariant::Public(p) => p,
+            _ => unreachable!(),
+        };
+        let kem = match get(KeyVariant::Pub, &self.kem, pkey_path)? {
+            KeyVariant::Public(p) => p,
+            _ => unreachable!(),
+        };
+        Ok((sig, kem))
+    }
+    fn get_sec(&self, skey_path: &str) -> Result<(Self::SigSec, Self::KemSec)> {
+        let sig = match get(KeyVariant::Sec, &self.sign, skey_path)? {
+            KeyVariant::Secret(s) => s,
+            _ => unreachable!(),
+        };
+        let kem = match get(KeyVariant::Sec, &self.kem, skey_path)? {
+            KeyVariant::Secret(s) => s,
+            _ => unreachable!(),
+        };
+        Ok((sig, kem))
+    }
+    // The total size that the file will be for each of the key parts. This is
+    // used for composition key files where multiple different keypairs are
+    // stored in the same file.
+    fn total_pub_size_bytes(&self) -> usize {
+        self.sign.pub_key_len() + self.kem.pub_key_len()
+    }
+    fn total_sec_size_bytes(&self) -> usize {
+        self.sign.sec_key_len() + self.kem.sec_key_len()
+    }
 }
