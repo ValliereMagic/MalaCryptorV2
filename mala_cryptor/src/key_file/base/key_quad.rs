@@ -28,19 +28,6 @@ pub trait IKeyQuad {
     fn total_sec_size_bytes(&self) -> usize;
 }
 
-// Specifies the standard way of creating a KeyQuad. A variant that has an
-// offset for hybrid encryption where multiple rounds are done; and a basic
-// variant with offsets of 0.
-pub trait IKeyQuadCreator<SigKeyPair, KemKeyPair>
-where
-    SigKeyPair: IKeyPair,
-    KemKeyPair: IKeyPair,
-{
-    #[allow(clippy::new_ret_no_self)]
-    fn new() -> KeyQuad<SigKeyPair, KemKeyPair>;
-    fn hyb_new(pub_offset: u64, sec_offset: u64) -> KeyQuad<SigKeyPair, KemKeyPair>;
-}
-
 // Generic KeyQuad struct extensible by any specific implementation
 pub struct KeyQuad<SigKeyPair, KemKeyPair>
 where
@@ -51,15 +38,24 @@ where
     kem: KemKeyPair,
 }
 
-// Base creation of a KeyQuad. Used by specific implementations to bootstrap
-// themselves
+// Base creation of a KeyQuad.
 impl<SigKeyPair, KemKeyPair> KeyQuad<SigKeyPair, KemKeyPair>
 where
     SigKeyPair: IKeyPair,
     KemKeyPair: IKeyPair,
 {
-    pub fn create(sign: SigKeyPair, kem: KemKeyPair) -> KeyQuad<SigKeyPair, KemKeyPair> {
-        KeyQuad { sign, kem }
+    pub fn new() -> Self {
+        KeyQuad {
+            sign: SigKeyPair::new(0, 0),
+            kem: KemKeyPair::new(0, 0),
+        }
+    }
+
+    pub fn hyb_new(pub_offset: u64, sec_offset: u64) -> Self {
+        KeyQuad {
+            sign: SigKeyPair::new(pub_offset, sec_offset),
+            kem: KemKeyPair::new(pub_offset, sec_offset),
+        }
     }
 }
 

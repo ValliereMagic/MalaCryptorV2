@@ -9,6 +9,8 @@ use std::io::SeekFrom;
 pub trait IKeyPair {
     type Pub;
     type Sec;
+    // Create a new keypair
+    fn new(pub_offset: u64, sec_offset: u64) -> Self;
     // Generate a public and private key A, and B.
     fn gen_keypair(&self) -> (Self::Pub, Self::Sec);
     // Take a public key, and turn it into bytes

@@ -22,6 +22,10 @@ impl Create for SodiumSigSec {
 impl IKeyPair for Signature {
     type Pub = SodiumSigPub;
     type Sec = SodiumSigSec;
+    // Create a new keypair
+    fn new(pub_offset: u64, sec_offset: u64) -> Self {
+        Signature::new(pub_offset, sec_offset)
+    }
     // Generate a public and private key A, and B.
     fn gen_keypair(&self) -> (SodiumSigPub, SodiumSigSec) {
         unsafe {
@@ -69,6 +73,10 @@ impl IKeyPair for Signature {
 impl IKeyPair for KeyExchange {
     type Pub = SodiumKEMPub;
     type Sec = SodiumKEMSec;
+    // Create a new keypair
+    fn new(pub_offset: u64, sec_offset: u64) -> Self {
+        KeyExchange::new(pub_offset, sec_offset)
+    }
     // Generate a public and private key A, and B.
     fn gen_keypair(&self) -> (SodiumKEMPub, SodiumKEMSec) {
         unsafe {
@@ -114,18 +122,6 @@ impl IKeyPair for KeyExchange {
 }
 
 pub type ClassicalKeyQuad = KeyQuad<Signature, KeyExchange>;
-
-impl IKeyQuadCreator<Signature, KeyExchange> for ClassicalKeyQuad {
-    fn new() -> ClassicalKeyQuad {
-        KeyQuad::create(Signature::new(0, 0), KeyExchange::new(0, 0))
-    }
-    fn hyb_new(pub_offset: u64, sec_offset: u64) -> ClassicalKeyQuad {
-        KeyQuad::create(
-            Signature::new(pub_offset, sec_offset),
-            KeyExchange::new(pub_offset, sec_offset),
-        )
-    }
-}
 
 #[test]
 fn test_classical() {
