@@ -1,79 +1,69 @@
 use super::base::*;
-use crate::enc_algos_in_use;
-use oqs::kem;
-use oqs::sig;
+use pqcrypto_dilithium::ffi::*;
+use pqcrypto_kyber::ffi::*;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-// Quantum KeyPair using liboqs via liboqs-rust.
+#[derive(Zeroize, ZeroizeOnDrop)] 
+pub struct DilithiumSigPub([u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES]);
+#[derive(Zeroize, ZeroizeOnDrop)] 
+pub struct DilithiumSigSec([u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES]);
+#[derive(Zeroize, ZeroizeOnDrop)] 
+pub struct KyberKEMPub([u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES]);
+#[derive(Zeroize, ZeroizeOnDrop)] 
+pub struct KyberKEMSec([u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES]);
 
-pub struct QSignature {
-    // Base
-    signature: Signature,
-    sig: sig::Sig,
-}
+pub struct QSignature(Signature);
+
 // Adapt QSignature to the Keypair trait
 impl IKeyPair for QSignature {
-    type Pub = sig::PublicKey;
-    type Sec = sig::SecretKey;
+    type Pub = Box<DilithiumSigPub>;
+    type Sec = Box<DilithiumSigSec>;
     // Create a new keypair
     fn new(pub_offset: u64, sec_offset: u64) -> Self {
         QSignature {
-            signature: Signature::new(pub_offset, sec_offset),
-            sig: enc_algos_in_use::get_q_sig_algo(),
+            0: Signature::new(pub_offset, sec_offset),
         }
     }
-    fn gen_keypair(&self) -> (sig::PublicKey, sig::SecretKey) {
-        self.sig
-            .keypair()
-            .expect("Unable to generate quantum keypair.")
+    fn gen_keypair(&self) -> (Self::Pub, Self::Sec) {
+		let public_key: Self::Pub = Box::new();
+	}
+    fn pub_to_bytes(&self, pub_k: &Self::Pub) -> Vec<u8> {
+        pub_k.as_bytes().to_owned()
     }
-    fn pub_to_bytes(&self, pub_k: &sig::PublicKey) -> Vec<u8> {
-        pub_k.as_ref().to_owned()
+    fn bytes_to_pub(&self, bytes: &[u8]) -> Self::Pub {
+        dilithium5::PublicKey::from_bytes(&bytes[0..dilithium5::public_key_bytes()])
+            .expect("Not enough bytes to construct a dilithium5 public key.")
     }
-    fn bytes_to_pub(&self, bytes: &[u8]) -> sig::PublicKey {
-        self.sig
-            .public_key_from_bytes(bytes)
-            .expect("Unable to convert bytes to quantum signature.")
-            .to_owned()
+    fn sec_to_bytes(&self, sec_k: &Self::Sec) -> Vec<u8> {
+        sec_k.as_bytes().to_owned()
     }
-    fn sec_to_bytes(&self, sec_k: &sig::SecretKey) -> Vec<u8> {
-        sec_k.as_ref().to_owned()
-    }
-    fn bytes_to_sec(&self, bytes: &[u8]) -> sig::SecretKey {
-        self.sig
-            .secret_key_from_bytes(bytes)
-            .expect("Unable to convert bytes to quantum signature.")
-            .to_owned()
+    fn bytes_to_sec(&self, bytes: &[u8]) -> Self::Sec {
+        dilithium5::SecretKey::from_bytes(&bytes[0..dilithium5::secret_key_bytes()])
+            .expect("Not enough bytes to construct a dilithium5 secret key.")
     }
     fn pub_offset(&self) -> u64 {
-        self.signature.pub_offset()
+        self.0.pub_offset()
     }
     fn sec_offset(&self) -> u64 {
-        self.signature.sec_offset()
+        self.0.sec_offset()
     }
     fn pub_key_len(&self) -> usize {
-        self.sig.length_public_key()
+        dilithium5::public_key_bytes()
     }
     fn sec_key_len(&self) -> usize {
-        self.sig.length_secret_key()
+        dilithium5::secret_key_bytes()
     }
 }
 
-pub struct QKeyExchange {
-    // Base
-    key_exchange: KeyExchange,
-    sig: sig::Sig,
-    kem: kem::Kem,
-}
+pub struct QKeyExchange(KeyExchange);
 
-impl<'a> IKeyPair for QKeyExchange {
-    type Pub = kem::PublicKey;
-    type Sec = kem::SecretKey;
+impl IKeyPair for QKeyExchange {
+    type Pub = kyber1024::PublicKey;
+    type Sec = kyber1024::SecretKey;
     // Create a new keypair
     fn new(pub_offset: u64, sec_offset: u64) -> Self {
         QKeyExchange {
-            key_exchange: KeyExchange::new(pub_offset, sec_offset),
-            sig: enc_algos_in_use::get_q_sig_algo(),
-            kem: enc_algos_in_use::get_q_kem_algo(),
+            0: KeyExchange::new(pub_offset, sec_offset),
         }
     }
     fn gen_keypair(&self) -> (kem::PublicKey, kem::SecretKey) {

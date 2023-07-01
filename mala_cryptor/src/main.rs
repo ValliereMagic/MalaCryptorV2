@@ -1,6 +1,5 @@
 mod chunked_file_reader;
 mod enc;
-mod enc_algos_in_use;
 mod global_constants;
 mod key_derivation;
 mod key_file;
@@ -13,7 +12,6 @@ use std::io::{Error, ErrorKind, Result};
 use std::thread;
 
 fn application() -> Result<()> {
-    oqs::init();
     unsafe {
         if libsodium_sys::sodium_init() < 0 {
             panic!("Unable to initialize libsodium.");
