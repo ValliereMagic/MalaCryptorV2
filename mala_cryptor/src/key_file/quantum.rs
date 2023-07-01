@@ -3,29 +3,10 @@ use libsodium_sys::*;
 use pqcrypto_dilithium::ffi::*;
 use pqcrypto_kyber::ffi::*;
 
-pub struct DilithiumSigPub(Box<[u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES]>);
-
-impl DilithiumSigPub {
-    pub fn new() -> Self {
-        let mut inner = Box::new([0u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES]);
-        unsafe {
-            sodium_mlock(inner.as_mut_ptr() as _, inner.len());
-        }
-        DilithiumSigPub(inner)
-    }
-}
-
-impl Drop for DilithiumSigPub {
-    fn drop(&mut self) {
-        unsafe {
-            sodium_munlock(self.0.as_mut_ptr() as _, self.0.len());
-        }
-    }
-}
-
-pub struct DilithiumSigSec(Box<[u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES]>);
-pub struct KyberKEMPub([u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES]);
-pub struct KyberKEMSec([u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES]);
+pub type DilithiumSigPub = [u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES];
+pub type DilithiumSigSec = SecretMem<PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES>;
+pub type KyberKEMPub = [u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES];
+pub type KyberKEMSec = SecretMem<PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES>;
 pub struct QSignature(Signature);
 
 // Adapt QSignature to the Keypair trait
@@ -39,7 +20,15 @@ impl IKeyPair for QSignature {
         }
     }
     fn gen_keypair(&self) -> (Self::Pub, Self::Sec) {
-        let public_key: Self::Pub = Box::new();
+        let mut public_key = DilithiumSigPub::new();
+        let mut secret_key = DilithiumSigSec::new();
+        unsafe {
+            PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_keypair(
+                public_key.as_mut_ptr(),
+                secret_key.as_mut_ptr(),
+            );
+        }
+        return (public_key, secret_key);
     }
     fn pub_to_bytes(&self, pub_k: &Self::Pub) -> Vec<u8> {
         pub_k.as_bytes().to_owned()
