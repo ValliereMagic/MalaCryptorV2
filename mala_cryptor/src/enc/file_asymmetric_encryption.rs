@@ -17,8 +17,8 @@ use std::ptr;
 // AsyCryptor struct.
 pub trait IAsyCryptable: IKeyQuad {
     type KEMSharedSecret;
-    type KEMCipherText;
-    type Signature;
+    type KEMCipherText: Create;
+    type Signature: Create;
     // Shared secret based functions
     // Specifies whether this IAsyCryptable key exchange mechanism uses a
     // ciphertext for acquiring a shared secret
@@ -41,8 +41,8 @@ pub trait IAsyCryptable: IKeyQuad {
         ciphertext: Option<&Self::KEMCipherText>,
     ) -> Self::KEMSharedSecret;
     // Serializers and Metadata
-    fn ciphertext_to_bytes<'a>(&self, ct: &'a Self::KEMCipherText) -> &'a [u8];
-    fn ciphertext_from_bytes(&self, bytes: &[u8]) -> Self::KEMCipherText;
+    fn ciphertext_bytes<'a>(&self, ct: &'a Self::KEMCipherText) -> &'a [u8];
+    fn ciphertext_bytes_mut<'a>(&self, ct: &'a mut Self::KEMCipherText) -> &'a mut [u8];
     fn ciphertext_length(&self) -> usize;
     fn shared_secret_to_bytes<'a>(&self, ss: &'a Self::KEMSharedSecret) -> &'a [u8];
     // Signature based functions
@@ -50,8 +50,8 @@ pub trait IAsyCryptable: IKeyQuad {
     fn verify(&self, message: &[u8], signature: &Self::Signature, key: &Self::SigPub) -> bool;
     // Serializers and Metadata
     fn signature_length(&self) -> i64;
-    fn signature_to_bytes<'a>(&self, signature: &'a Self::Signature) -> &'a [u8];
-    fn signature_from_bytes(&self, bytes: &[u8]) -> Self::Signature;
+    fn signature_bytes<'a>(&self, signature: &'a Self::Signature) -> &'a [u8];
+    fn signature_bytes_mut<'a>(&self, signature: &'a mut Self::Signature) -> &'a mut [u8];
 }
 
 pub struct AsyCryptor<Cryptable>
@@ -75,7 +75,7 @@ where
         let mut file = OpenOptions::new().read(true).write(true).open(file_path)?;
         // Digest, and sign the encrypted file
         let signature = self.crypt.sign(&digest(&mut file, None)?, &skey.0);
-        file.write_all(self.crypt.signature_to_bytes(&signature))?;
+        file.write_all(self.crypt.signature_bytes(&signature))?;
         Ok(())
     }
 
@@ -85,9 +85,8 @@ where
         // Seek to the beginning of the signature
         let signature_offset = self.crypt.signature_length();
         file.seek(SeekFrom::End(-signature_offset))?;
-        let mut buff = vec![0u8; signature_offset as usize];
-        file.read_exact(&mut buff)?;
-        let signature = self.crypt.signature_from_bytes(&buff);
+        let mut signature = Cryptable::Signature::default();
+        file.read_exact(self.crypt.signature_bytes_mut(&mut signature))?;
         // Seek back to the beginning of the file
         file.rewind()?;
         // Digest the file up to the signature
@@ -131,7 +130,7 @@ where
         );
         // If there is a ciphertext, write it out to the file
         if let Some(ct) = ct {
-            file_out.write_all(self.crypt.ciphertext_to_bytes(&ct))?;
+            file_out.write_all(self.crypt.ciphertext_bytes(&ct))?;
         }
         // Encrypt the source file with the shared secret, and write it to the out
         // file
@@ -169,9 +168,9 @@ where
         );
         // Read in the key exchange ciphertext if there is one
         let ct = if self.crypt.uses_cipher_text() {
-            let mut kem_ct_buff = vec![0u8; self.crypt.ciphertext_length()];
-            file_in.read_exact(&mut kem_ct_buff)?;
-            Some(self.crypt.ciphertext_from_bytes(&kem_ct_buff))
+            let mut kem_ct = Cryptable::KEMCipherText::default();
+            file_in.read_exact(self.crypt.ciphertext_bytes_mut(&mut kem_ct))?;
+            Some(kem_ct)
         } else {
             None
         };
