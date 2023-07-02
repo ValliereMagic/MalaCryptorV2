@@ -1,25 +1,22 @@
 use super::base::*;
 use libsodium_sys::*;
-use std::convert::TryInto;
 
 pub type SodiumSigPub = [u8; crypto_sign_PUBLICKEYBYTES as usize];
-pub type SodiumSigSec = [u8; crypto_sign_SECRETKEYBYTES as usize];
+const USIZE_crypto_sign_SECRETKEYBYTES: usize = crypto_sign_SECRETKEYBYTES as usize;
+pub type SodiumSigSec = SecretMem<USIZE_crypto_sign_SECRETKEYBYTES>;
 pub type SodiumKEMPub = [u8; crypto_kx_PUBLICKEYBYTES as usize];
-pub type SodiumKEMSec = [u8; crypto_kx_SECRETKEYBYTES as usize];
+const USIZE_crypto_kx_SECRETKEYBYTES: usize = crypto_kx_SECRETKEYBYTES as usize;
+pub type SodiumKEMSec = SecretMem<USIZE_crypto_kx_SECRETKEYBYTES>;
 
-trait Create {
-    fn default() -> Self;
-}
-
-impl Create for SodiumSigSec {
+impl Create for SodiumSigPub {
     fn default() -> Self {
-        [0u8; crypto_sign_SECRETKEYBYTES as usize]
+        [0u8; crypto_sign_PUBLICKEYBYTES as usize]
     }
 }
 
 // Classical KeyPair using libsodium via SodiumOxide.
 
-impl IKeyPair for Signature {
+impl IKeyPairCreator for Signature {
     type Pub = SodiumSigPub;
     type Sec = SodiumSigSec;
     // Create a new keypair
@@ -27,30 +24,26 @@ impl IKeyPair for Signature {
         Signature::new(pub_offset, sec_offset)
     }
     // Generate a public and private key A, and B.
-    fn gen_keypair(&self) -> (SodiumSigPub, SodiumSigSec) {
+    fn gen_keypair() -> (Self::Pub, Self::Sec) {
         unsafe {
-            let (mut pk, mut sk) = (SodiumSigPub::default(), SodiumSigSec::default());
+            let (mut pk, mut sk) = (<SodiumSigPub as Create>::default(), SodiumSigSec::default());
             crypto_sign_keypair(pk.as_mut_ptr(), sk.as_mut_ptr());
             (pk, sk)
         }
     }
     // Take a public key, and turn it into bytes
-    fn pub_to_bytes(&self, pub_k: &SodiumSigPub) -> Vec<u8> {
-        Vec::from(pub_k.to_owned())
+    fn pub_bytes<'a>(pub_k: &'a Self::Pub) -> &'a [u8] {
+        pub_k
     }
     // inverse, back to a public key
-    fn bytes_to_pub(&self, bytes: &[u8]) -> SodiumSigPub {
-        bytes[..crypto_sign_PUBLICKEYBYTES as usize]
-            .try_into()
-            .expect("Unable to convert back to signature public key.")
+    fn pub_bytes_mut<'a>(pub_k: &'a mut Self::Pub) -> &'a mut [u8] {
+        pub_k
     }
-    fn sec_to_bytes(&self, sec_k: &SodiumSigSec) -> Vec<u8> {
-        Vec::from(sec_k.to_owned())
+    fn sec_bytes<'a>(sec_k: &'a Self::Sec) -> &'a [u8] {
+        &sec_k[0..]
     }
-    fn bytes_to_sec(&self, bytes: &[u8]) -> SodiumSigSec {
-        bytes[..crypto_sign_SECRETKEYBYTES as usize]
-            .try_into()
-            .expect("Unable to convert back to signature secret key.")
+    fn sec_bytes_mut<'a>(sec_k: &'a mut Self::Sec) -> &'a mut [u8] {
+        &mut sec_k[0..]
     }
     // offset into the file to read / write a public key
     fn pub_offset(&self) -> u64 {
@@ -61,16 +54,16 @@ impl IKeyPair for Signature {
         self.sec_offset()
     }
     // The length in bytes of a public key
-    fn pub_key_len(&self) -> usize {
+    fn pub_key_len() -> usize {
         crypto_sign_PUBLICKEYBYTES as usize
     }
     // The length in bytes of a secret key
-    fn sec_key_len(&self) -> usize {
+    fn sec_key_len() -> usize {
         crypto_sign_SECRETKEYBYTES as usize
     }
 }
 
-impl IKeyPair for KeyExchange {
+impl IKeyPairCreator for KeyExchange {
     type Pub = SodiumKEMPub;
     type Sec = SodiumKEMSec;
     // Create a new keypair
@@ -78,30 +71,26 @@ impl IKeyPair for KeyExchange {
         KeyExchange::new(pub_offset, sec_offset)
     }
     // Generate a public and private key A, and B.
-    fn gen_keypair(&self) -> (SodiumKEMPub, SodiumKEMSec) {
+    fn gen_keypair() -> (Self::Pub, Self::Sec) {
         unsafe {
-            let (mut pk, mut sk) = (SodiumKEMPub::default(), SodiumKEMSec::default());
+            let (mut pk, mut sk) = (<SodiumKEMPub as Create>::default(), SodiumKEMSec::default());
             crypto_kx_keypair(pk.as_mut_ptr(), sk.as_mut_ptr());
             (pk, sk)
         }
     }
     // Take a public key, and turn it into bytes
-    fn pub_to_bytes(&self, pub_k: &SodiumKEMPub) -> Vec<u8> {
-        Vec::from(pub_k.to_owned())
+    fn pub_bytes<'a>(pub_k: &'a Self::Pub) -> &'a [u8] {
+        pub_k
     }
     // inverse, back to a public key
-    fn bytes_to_pub(&self, bytes: &[u8]) -> SodiumKEMPub {
-        bytes[..crypto_kx_PUBLICKEYBYTES as usize]
-            .try_into()
-            .expect("Unable to convert back to signature public key.")
+    fn pub_bytes_mut<'a>(pub_k: &'a mut Self::Pub) -> &'a mut [u8] {
+        pub_k
     }
-    fn sec_to_bytes(&self, sec_k: &SodiumKEMSec) -> Vec<u8> {
-        Vec::from(sec_k.to_owned())
+    fn sec_bytes<'a>(sec_k: &'a Self::Sec) -> &'a [u8] {
+        &sec_k[0..]
     }
-    fn bytes_to_sec(&self, bytes: &[u8]) -> SodiumKEMSec {
-        bytes[..crypto_kx_SECRETKEYBYTES as usize]
-            .try_into()
-            .expect("Unable to convert back to signature public key.")
+    fn sec_bytes_mut<'a>(sec_k: &'a mut Self::Sec) -> &'a mut [u8] {
+        &mut sec_k[0..]
     }
     // offset into the file to read / write a public key
     fn pub_offset(&self) -> u64 {
@@ -112,11 +101,11 @@ impl IKeyPair for KeyExchange {
         self.sec_offset() + crypto_sign_SECRETKEYBYTES as u64
     }
     // The length in bytes of a public key
-    fn pub_key_len(&self) -> usize {
+    fn pub_key_len() -> usize {
         crypto_kx_PUBLICKEYBYTES as usize
     }
     // The length in bytes of a secret key
-    fn sec_key_len(&self) -> usize {
+    fn sec_key_len() -> usize {
         crypto_kx_SECRETKEYBYTES as usize
     }
 }

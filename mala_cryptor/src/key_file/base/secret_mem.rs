@@ -1,3 +1,4 @@
+use super::Create;
 use std::ops::{Deref, DerefMut};
 
 use libsodium_sys::*;
@@ -19,6 +20,12 @@ impl<const N: usize> Drop for SecretMem<N> {
         unsafe {
             sodium_munlock(self.0.as_mut_ptr() as _, self.0.len());
         }
+    }
+}
+
+impl<const N: usize> Create for SecretMem<N> {
+    fn default() -> Self {
+        SecretMem::new()
     }
 }
 

@@ -5,11 +5,8 @@ use std::convert::TryInto;
 use std::ptr;
 
 type SodiumSignature = [u8; crypto_sign_BYTES as usize];
-type SodiumSessionKey = [u8; crypto_kx_SESSIONKEYBYTES as usize];
-
-trait Create {
-    fn default() -> Self;
-}
+const USIZE_crypto_kx_SESSIONKEYBYTES: usize = crypto_kx_SESSIONKEYBYTES as usize;
+type SodiumSessionKey = SecretMem<USIZE_crypto_kx_SESSIONKEYBYTES>;
 
 impl Create for SodiumSignature {
     fn default() -> Self {

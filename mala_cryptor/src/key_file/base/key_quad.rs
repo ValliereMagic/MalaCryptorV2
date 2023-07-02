@@ -31,8 +31,8 @@ pub trait IKeyQuad {
 // Generic KeyQuad struct extensible by any specific implementation
 pub struct KeyQuad<SigKeyPair, KemKeyPair>
 where
-    SigKeyPair: IKeyPair,
-    KemKeyPair: IKeyPair,
+    SigKeyPair: IKeyPairCreator,
+    KemKeyPair: IKeyPairCreator,
 {
     sign: SigKeyPair,
     kem: KemKeyPair,
@@ -41,8 +41,8 @@ where
 // Base creation of a KeyQuad.
 impl<SigKeyPair, KemKeyPair> KeyQuad<SigKeyPair, KemKeyPair>
 where
-    SigKeyPair: IKeyPair,
-    KemKeyPair: IKeyPair,
+    SigKeyPair: IKeyPairCreator,
+    KemKeyPair: IKeyPairCreator,
 {
     pub fn new() -> Self {
         KeyQuad {
@@ -63,8 +63,8 @@ where
 // perform
 impl<SigKeyPair, KemKeyPair> IKeyQuad for KeyQuad<SigKeyPair, KemKeyPair>
 where
-    SigKeyPair: IKeyPair,
-    KemKeyPair: IKeyPair,
+    SigKeyPair: IKeyPairCreator,
+    KemKeyPair: IKeyPairCreator,
 {
     type SigPub = SigKeyPair::Pub;
     type SigSec = SigKeyPair::Sec;
@@ -103,9 +103,9 @@ where
     // used for composition key files where multiple different keypairs are
     // stored in the same file.
     fn total_pub_size_bytes(&self) -> usize {
-        self.sign.pub_key_len() + self.kem.pub_key_len()
+        SigKeyPair::pub_key_len() + KemKeyPair::pub_key_len()
     }
     fn total_sec_size_bytes(&self) -> usize {
-        self.sign.sec_key_len() + self.kem.sec_key_len()
+        SigKeyPair::sec_key_len() + KemKeyPair::sec_key_len()
     }
 }

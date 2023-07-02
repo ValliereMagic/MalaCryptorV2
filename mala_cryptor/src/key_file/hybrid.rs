@@ -2,7 +2,6 @@
 fn test_hybrid() {
     use super::base::*;
     use super::{classical::*, quantum::*};
-    use crate::enc_algos_in_use;
     use libsodium_sys::*;
     use std::fs;
     let q = QuantumKeyQuad::new();
@@ -12,16 +11,14 @@ fn test_hybrid() {
     );
     q.gen("/tmp/pub_key_h_test", "/tmp/sec_key_h_test").unwrap();
     c.gen("/tmp/pub_key_h_test", "/tmp/sec_key_h_test").unwrap();
-    let sig = enc_algos_in_use::get_q_sig_algo();
-    let kem = enc_algos_in_use::get_q_kem_algo();
     // Pub
     let publ = q.get_pub("/tmp/pub_key_h_test").unwrap();
-    assert_eq!(publ.0.as_ref().len(), sig.length_public_key());
-    assert_eq!(publ.1.as_ref().len(), kem.length_public_key());
+    assert_eq!(publ.0.as_ref().len(), QSignature::pub_key_len());
+    assert_eq!(publ.1.as_ref().len(), QKeyExchange::pub_key_len());
     // Sec
     let sec = q.get_sec("/tmp/sec_key_h_test").unwrap();
-    assert_eq!(sec.0.as_ref().len(), sig.length_secret_key());
-    assert_eq!(sec.1.as_ref().len(), kem.length_secret_key());
+    assert_eq!(sec.0.as_ref().len(), QSignature::sec_key_len());
+    assert_eq!(sec.1.as_ref().len(), QKeyExchange::sec_key_len());
     // Pub
     let publ = c.get_pub("/tmp/pub_key_h_test").unwrap();
     assert_eq!(publ.0.as_ref().len(), crypto_sign_PUBLICKEYBYTES as usize);

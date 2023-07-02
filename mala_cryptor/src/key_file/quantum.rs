@@ -1,5 +1,4 @@
 use super::base::*;
-use libsodium_sys::*;
 use pqcrypto_dilithium::ffi::*;
 use pqcrypto_kyber::ffi::*;
 
@@ -7,10 +6,23 @@ pub type DilithiumSigPub = [u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES];
 pub type DilithiumSigSec = SecretMem<PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES>;
 pub type KyberKEMPub = [u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES];
 pub type KyberKEMSec = SecretMem<PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES>;
+
+impl Create for DilithiumSigPub {
+    fn default() -> Self {
+        [0u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES]
+    }
+}
+
+impl Create for KyberKEMPub {
+    fn default() -> Self {
+        [0u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES]
+    }
+}
+
 pub struct QSignature(Signature);
 
 // Adapt QSignature to the Keypair trait
-impl IKeyPair for QSignature {
+impl IKeyPairCreator for QSignature {
     type Pub = DilithiumSigPub;
     type Sec = DilithiumSigSec;
     // Create a new keypair
@@ -19,9 +31,9 @@ impl IKeyPair for QSignature {
             0: Signature::new(pub_offset, sec_offset),
         }
     }
-    fn gen_keypair(&self) -> (Self::Pub, Self::Sec) {
-        let mut public_key = DilithiumSigPub::new();
-        let mut secret_key = DilithiumSigSec::new();
+    fn gen_keypair() -> (Self::Pub, Self::Sec) {
+        let mut public_key = Self::Pub::default();
+        let mut secret_key = Self::Sec::default();
         unsafe {
             PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_keypair(
                 public_key.as_mut_ptr(),
@@ -30,19 +42,17 @@ impl IKeyPair for QSignature {
         }
         return (public_key, secret_key);
     }
-    fn pub_to_bytes(&self, pub_k: &Self::Pub) -> Vec<u8> {
-        pub_k.as_bytes().to_owned()
+    fn pub_bytes<'a>(pub_k: &'a Self::Pub) -> &'a [u8] {
+        pub_k
     }
-    fn bytes_to_pub(&self, bytes: &[u8]) -> Self::Pub {
-        dilithium5::PublicKey::from_bytes(&bytes[0..dilithium5::public_key_bytes()])
-            .expect("Not enough bytes to construct a dilithium5 public key.")
+    fn pub_bytes_mut<'a>(pub_k: &'a mut Self::Pub) -> &'a mut [u8] {
+        pub_k
     }
-    fn sec_to_bytes(&self, sec_k: &Self::Sec) -> Vec<u8> {
-        sec_k.as_bytes().to_owned()
+    fn sec_bytes<'a>(sec_k: &'a Self::Sec) -> &'a [u8] {
+        &sec_k[0..]
     }
-    fn bytes_to_sec(&self, bytes: &[u8]) -> Self::Sec {
-        dilithium5::SecretKey::from_bytes(&bytes[0..dilithium5::secret_key_bytes()])
-            .expect("Not enough bytes to construct a dilithium5 secret key.")
+    fn sec_bytes_mut<'a>(sec_k: &'a mut Self::Sec) -> &'a mut [u8] {
+        &mut sec_k[0..]
     }
     fn pub_offset(&self) -> u64 {
         self.0.pub_offset()
@@ -50,59 +60,59 @@ impl IKeyPair for QSignature {
     fn sec_offset(&self) -> u64 {
         self.0.sec_offset()
     }
-    fn pub_key_len(&self) -> usize {
-        dilithium5::public_key_bytes()
+    fn pub_key_len() -> usize {
+        PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES
     }
-    fn sec_key_len(&self) -> usize {
-        dilithium5::secret_key_bytes()
+    fn sec_key_len() -> usize {
+        PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES
     }
 }
 
 pub struct QKeyExchange(KeyExchange);
 
-impl IKeyPair for QKeyExchange {
-    type Pub = kyber1024::PublicKey;
-    type Sec = kyber1024::SecretKey;
+impl IKeyPairCreator for QKeyExchange {
+    type Pub = KyberKEMPub;
+    type Sec = KyberKEMSec;
     // Create a new keypair
     fn new(pub_offset: u64, sec_offset: u64) -> Self {
         QKeyExchange {
             0: KeyExchange::new(pub_offset, sec_offset),
         }
     }
-    fn gen_keypair(&self) -> (kem::PublicKey, kem::SecretKey) {
-        self.kem
-            .keypair()
-            .expect("Unable to generate quantum keypair.")
+    fn gen_keypair() -> (Self::Pub, Self::Sec) {
+        let mut public_key = Self::Pub::default();
+        let mut secret_key = Self::Sec::default();
+        unsafe {
+            PQCLEAN_KYBER102490S_CLEAN_crypto_kem_keypair(
+                public_key.as_mut_ptr(),
+                secret_key.as_mut_ptr(),
+            );
+        }
+        return (public_key, secret_key);
     }
-    fn pub_to_bytes(&self, pub_k: &kem::PublicKey) -> Vec<u8> {
-        pub_k.as_ref().to_owned()
+    fn pub_bytes<'a>(pub_k: &'a Self::Pub) -> &'a [u8] {
+        pub_k
     }
-    fn bytes_to_pub(&self, bytes: &[u8]) -> kem::PublicKey {
-        self.kem
-            .public_key_from_bytes(bytes)
-            .expect("Unable to convert bytes to quantum signature.")
-            .to_owned()
+    fn pub_bytes_mut<'a>(pub_k: &'a mut Self::Pub) -> &'a mut [u8] {
+        pub_k
     }
-    fn sec_to_bytes(&self, sec_k: &kem::SecretKey) -> Vec<u8> {
-        sec_k.as_ref().to_owned()
+    fn sec_bytes<'a>(sec_k: &'a Self::Sec) -> &'a [u8] {
+        &sec_k[0..]
     }
-    fn bytes_to_sec(&self, bytes: &[u8]) -> kem::SecretKey {
-        self.kem
-            .secret_key_from_bytes(bytes)
-            .expect("Unable to convert bytes to quantum signature.")
-            .to_owned()
+    fn sec_bytes_mut<'a>(sec_k: &'a mut Self::Sec) -> &'a mut [u8] {
+        &mut sec_k[0..]
     }
     fn pub_offset(&self) -> u64 {
-        self.sig.length_public_key() as u64 + self.key_exchange.pub_offset()
+        self.0.pub_offset() + PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES as u64
     }
     fn sec_offset(&self) -> u64 {
-        self.sig.length_secret_key() as u64 + self.key_exchange.sec_offset()
+        self.0.sec_offset() + PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES as u64
     }
-    fn pub_key_len(&self) -> usize {
-        self.kem.length_public_key()
+    fn pub_key_len() -> usize {
+        PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES
     }
-    fn sec_key_len(&self) -> usize {
-        self.kem.length_secret_key()
+    fn sec_key_len() -> usize {
+        PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES
     }
 }
 
@@ -113,16 +123,26 @@ fn test_quantum() {
     use std::fs;
     let q = QuantumKeyQuad::new();
     q.gen("/tmp/pub_key_q_test", "/tmp/sec_key_q_test").unwrap();
-    let sig = enc_algos_in_use::get_q_sig_algo();
-    let kem = enc_algos_in_use::get_q_kem_algo();
     // Pub
     let publ = q.get_pub("/tmp/pub_key_q_test").unwrap();
-    assert_eq!(publ.0.as_ref().len(), sig.length_public_key());
-    assert_eq!(publ.1.as_ref().len(), kem.length_public_key());
+    assert_eq!(
+        publ.0.as_ref().len(),
+        PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES
+    );
+    assert_eq!(
+        publ.1.as_ref().len(),
+        PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES
+    );
     // Sec
     let sec = q.get_sec("/tmp/sec_key_q_test").unwrap();
-    assert_eq!(sec.0.as_ref().len(), sig.length_secret_key());
-    assert_eq!(sec.1.as_ref().len(), kem.length_secret_key());
+    assert_eq!(
+        sec.0.as_ref().len(),
+        PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES
+    );
+    assert_eq!(
+        sec.1.as_ref().len(),
+        PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES
+    );
     fs::remove_file("/tmp/pub_key_q_test").unwrap();
     fs::remove_file("/tmp/sec_key_q_test").unwrap();
 }
