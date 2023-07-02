@@ -103,10 +103,10 @@ impl IKeyPairCreator for QKeyExchange {
         &mut sec_k[0..]
     }
     fn pub_offset(&self) -> u64 {
-        self.0.pub_offset() + PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES as u64
+        self.0.pub_offset() + PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES as u64
     }
     fn sec_offset(&self) -> u64 {
-        self.0.sec_offset() + PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES as u64
+        self.0.sec_offset() + PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES as u64
     }
     fn pub_key_len() -> usize {
         PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES

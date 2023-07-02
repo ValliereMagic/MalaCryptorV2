@@ -29,47 +29,48 @@ pub trait IKeyQuad {
 }
 
 // Generic KeyQuad struct extensible by any specific implementation
-pub struct KeyQuad<SigKeyPair, KemKeyPair>
+pub struct KeyQuad<SigKeyPairCreator, KemKeyPairCreator>
 where
-    SigKeyPair: IKeyPairCreator,
-    KemKeyPair: IKeyPairCreator,
+    SigKeyPairCreator: IKeyPairCreator,
+    KemKeyPairCreator: IKeyPairCreator,
 {
-    sign: SigKeyPair,
-    kem: KemKeyPair,
+    sign: SigKeyPairCreator,
+    kem: KemKeyPairCreator,
 }
 
 // Base creation of a KeyQuad.
-impl<SigKeyPair, KemKeyPair> KeyQuad<SigKeyPair, KemKeyPair>
+impl<SigKeyPairCreator, KemKeyPairCreator> KeyQuad<SigKeyPairCreator, KemKeyPairCreator>
 where
-    SigKeyPair: IKeyPairCreator,
-    KemKeyPair: IKeyPairCreator,
+    SigKeyPairCreator: IKeyPairCreator,
+    KemKeyPairCreator: IKeyPairCreator,
 {
     pub fn new() -> Self {
         KeyQuad {
-            sign: SigKeyPair::new(0, 0),
-            kem: KemKeyPair::new(0, 0),
+            sign: SigKeyPairCreator::new(0, 0),
+            kem: KemKeyPairCreator::new(0, 0),
         }
     }
 
     pub fn hyb_new(pub_offset: u64, sec_offset: u64) -> Self {
         KeyQuad {
-            sign: SigKeyPair::new(pub_offset, sec_offset),
-            kem: KemKeyPair::new(pub_offset, sec_offset),
+            sign: SigKeyPairCreator::new(pub_offset, sec_offset),
+            kem: KemKeyPairCreator::new(pub_offset, sec_offset),
         }
     }
 }
 
 // Universal implementation of the different operations that a KeyQuad needs to
 // perform
-impl<SigKeyPair, KemKeyPair> IKeyQuad for KeyQuad<SigKeyPair, KemKeyPair>
+impl<SigKeyPairCreator, KemKeyPairCreator> IKeyQuad
+    for KeyQuad<SigKeyPairCreator, KemKeyPairCreator>
 where
-    SigKeyPair: IKeyPairCreator,
-    KemKeyPair: IKeyPairCreator,
+    SigKeyPairCreator: IKeyPairCreator,
+    KemKeyPairCreator: IKeyPairCreator,
 {
-    type SigPub = SigKeyPair::Pub;
-    type SigSec = SigKeyPair::Sec;
-    type KemPub = KemKeyPair::Pub;
-    type KemSec = KemKeyPair::Sec;
+    type SigPub = SigKeyPairCreator::Pub;
+    type SigSec = SigKeyPairCreator::Sec;
+    type KemPub = KemKeyPairCreator::Pub;
+    type KemSec = KemKeyPairCreator::Sec;
     // Generate a public and private keyquad composed of a signature public and
     // secret pair as well as a key exchange public and secret pair
     fn gen(&self, pkey_path: &str, skey_path: &str) -> Result<()> {
@@ -103,9 +104,9 @@ where
     // used for composition key files where multiple different keypairs are
     // stored in the same file.
     fn total_pub_size_bytes(&self) -> usize {
-        SigKeyPair::pub_key_len() + KemKeyPair::pub_key_len()
+        SigKeyPairCreator::pub_key_len() + KemKeyPairCreator::pub_key_len()
     }
     fn total_sec_size_bytes(&self) -> usize {
-        SigKeyPair::sec_key_len() + KemKeyPair::sec_key_len()
+        SigKeyPairCreator::sec_key_len() + KemKeyPairCreator::sec_key_len()
     }
 }
