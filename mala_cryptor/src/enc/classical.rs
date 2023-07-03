@@ -87,13 +87,16 @@ impl IAsyCryptable for ClassicalKeyQuad {
     fn sign(&self, data: &[u8], key: &SodiumSigSec) -> SodiumSignature {
         unsafe {
             let mut sig = SodiumSignature::default();
-            crypto_sign_detached(
+            match crypto_sign_detached(
                 sig.as_mut_ptr(),
                 ptr::null_mut(),
                 data.as_ptr(),
                 data.len() as _,
                 key.as_ptr(),
-            );
+            ) {
+                0 => (),
+                _ => panic!("Our private key is suspicious, bailing out."),
+            }
             sig
         }
     }
@@ -120,4 +123,60 @@ impl IAsyCryptable for ClassicalKeyQuad {
     fn signature_bytes_mut<'a>(&self, signature: &'a mut Self::Signature) -> &'a mut [u8] {
         signature.as_mut()
     }
+}
+
+#[test]
+fn test_classical() {
+    use crate::key_file::*;
+    use std::fs::*;
+    use std::io::prelude::*;
+    let mut to_encrypt = [0u8; 40_000];
+    {
+        let mut source_file = File::open("/dev/urandom").unwrap();
+        let mut dest_file = File::create("/tmp/test_enc_c").unwrap();
+        source_file.read_exact(&mut to_encrypt).unwrap();
+        dest_file.write_all(&to_encrypt).unwrap();
+    }
+    let c = ClassicalKeyQuad::new();
+
+    c.gen("/tmp/pub_key_c_source", "/tmp/sec_key_c_source")
+        .unwrap();
+    c.gen("/tmp/pub_key_c_dest", "/tmp/sec_key_c_dest").unwrap();
+
+    use crate::AsyCryptor;
+
+    let c_cryptor = AsyCryptor::new(c);
+    c_cryptor
+        .encrypt_file(
+            "/tmp/pub_key_c_dest",
+            "/tmp/sec_key_c_source",
+            "/tmp/pub_key_c_source",
+            "/tmp/test_enc_c",
+            "/tmp/test_enc_c.enc",
+        )
+        .unwrap();
+    c_cryptor
+        .decrypt_file(
+            "/tmp/pub_key_c_source",
+            "/tmp/sec_key_c_dest",
+            "/tmp/pub_key_c_dest",
+            "/tmp/test_enc_c.enc",
+            "/tmp/test_enc_c.dec",
+        )
+        .unwrap();
+    let mut decrypted = [0u8; 40_000];
+    {
+        let mut dest_file = File::open("/tmp/test_enc_c.dec").unwrap();
+        dest_file.read_exact(&mut decrypted).unwrap();
+    }
+
+    // cleanup
+    remove_file("/tmp/test_enc_c").unwrap();
+    remove_file("/tmp/pub_key_c_source").unwrap();
+    remove_file("/tmp/sec_key_c_source").unwrap();
+    remove_file("/tmp/pub_key_c_dest").unwrap();
+    remove_file("/tmp/sec_key_c_dest").unwrap();
+    remove_file("/tmp/test_enc_c.dec").unwrap();
+
+    assert_eq!(to_encrypt, decrypted);
 }

@@ -35,10 +35,13 @@ impl IKeyPairCreator for QSignature {
         let mut public_key = Self::Pub::default();
         let mut secret_key = Self::Sec::default();
         unsafe {
-            PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_keypair(
+            match PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_keypair(
                 public_key.as_mut_ptr(),
                 secret_key.as_mut_ptr(),
-            );
+            ) {
+                0 => (),
+                _ => panic!("Failure while generating sign keypair."),
+            }
         }
         return (public_key, secret_key);
     }
@@ -83,10 +86,13 @@ impl IKeyPairCreator for QKeyExchange {
         let mut public_key = Self::Pub::default();
         let mut secret_key = Self::Sec::default();
         unsafe {
-            PQCLEAN_KYBER102490S_CLEAN_crypto_kem_keypair(
+            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_keypair(
                 public_key.as_mut_ptr(),
                 secret_key.as_mut_ptr(),
-            );
+            ) {
+                0 => (),
+                _ => panic!("Failure while generating KEM keypair."),
+            }
         }
         return (public_key, secret_key);
     }
