@@ -1,78 +1,133 @@
 use super::*;
 use crate::key_file::*;
 
+use pqcrypto_dilithium::ffi::*;
+use pqcrypto_kyber::ffi::*;
+
+type QSignature = [u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_BYTES];
+
+impl Create for QSignature {
+    fn default() -> Self {
+        [0u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_BYTES]
+    }
+}
+
 impl IAsyCryptable for QuantumKeyQuad {
-    type KEMSharedSecret = oqs::kem::SharedSecret;
-    type KEMCipherText = oqs::kem::Ciphertext;
-    type Signature = oqs::sig::Signature;
+    type KEMSharedSecret = SecretMem<PQCLEAN_KYBER1024_CLEAN_CRYPTO_BYTES>;
+    type KEMCipherText = [u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_CIPHERTEXTBYTES];
+    type Signature = QSignature;
     // Shared secret based functions
     fn uses_cipher_text(&self) -> bool {
         true
     }
     fn create_shared_secret(
         &self,
-        dest_pkey: &oqs::kem::PublicKey,
-        _our_pkey: &oqs::kem::PublicKey,
-        _our_skey: &oqs::kem::SecretKey,
-    ) -> (oqs::kem::SharedSecret, Option<oqs::kem::Ciphertext>) {
-        let (ct, ss) = get_q_kem_algo().encapsulate(dest_pkey).unwrap();
-        (ss, Some(ct))
+        dest_pkey: &Self::KemPub,
+        _our_pkey: &Self::KemPub,
+        _our_skey: &Self::KemSec,
+    ) -> (Self::KEMSharedSecret, Option<Self::KEMCipherText>) {
+        let mut ct = Self::KEMCipherText::default();
+        let mut ss = Self::KEMSharedSecret::default();
+        unsafe {
+            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_enc(
+                ct.as_mut_ptr(),
+                ss.as_mut_ptr(),
+                dest_pkey.as_ptr(),
+            ) {
+                0 => {
+                    for c in ct.iter() {
+                        print!("{}", c);
+                    }
+                    println!();
+                    for c in ss.iter() {
+                        print!("{}", c);
+                    }
+                    println!();
+                    (ss, Some(ct))
+                }
+                _ => panic!("Suspicious client quantum public key, bailing out."),
+            }
+        }
     }
     fn retrieve_shared_secret(
         &self,
-        our_skey: &oqs::kem::SecretKey,
-        _our_pkey: &oqs::kem::PublicKey,
-        _sender_pkey: &oqs::kem::PublicKey,
-        ciphertext: Option<&oqs::kem::Ciphertext>,
-    ) -> oqs::kem::SharedSecret {
-        get_q_kem_algo()
-            .decapsulate(our_skey, ciphertext.expect("Ciphertext must be passed"))
-            .expect("Unable to get shared secret.")
+        our_skey: &Self::KemSec,
+        _our_pkey: &Self::KemPub,
+        _sender_pkey: &Self::KemPub,
+        ciphertext: Option<&Self::KEMCipherText>,
+    ) -> Self::KEMSharedSecret {
+        let mut ss = Self::KEMSharedSecret::default();
+        unsafe {
+            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_dec(
+                ss.as_mut_ptr(),
+                ciphertext.unwrap().as_ptr(),
+                our_skey.as_ptr(),
+            ) {
+                0 => {
+                    for c in ciphertext.unwrap().iter() {
+                        print!("{}", c);
+                    }
+                    println!();
+                    for c in ss.iter() {
+                        print!("{}", c);
+                    }
+                    println!();
+                    ss
+                }
+                _ => panic!("Suspicious server quantum public key, bailing out."),
+            }
+        }
     }
     // Serializers and Metadata
-    fn ciphertext_to_bytes<'a>(&self, ct: &'a oqs::kem::Ciphertext) -> &'a [u8] {
+    fn ciphertext_bytes<'a>(&self, ct: &'a Self::KEMCipherText) -> &'a [u8] {
         ct.as_ref()
     }
-    fn ciphertext_from_bytes(&self, bytes: &[u8]) -> oqs::kem::Ciphertext {
-        get_q_kem_algo()
-            .ciphertext_from_bytes(bytes)
-            .expect("Unable to extract KEM ciphertext from file.")
-            .to_owned()
+    fn ciphertext_bytes_mut<'a>(&self, ct: &'a mut Self::KEMCipherText) -> &'a mut [u8] {
+        ct.as_mut()
     }
     fn ciphertext_length(&self) -> usize {
-        get_q_kem_algo().length_ciphertext()
+        PQCLEAN_KYBER1024_CLEAN_CRYPTO_CIPHERTEXTBYTES
     }
-    fn shared_secret_to_bytes<'a>(&self, ss: &'a oqs::kem::SharedSecret) -> &'a [u8] {
+    fn shared_secret_to_bytes<'a>(&self, ss: &'a Self::KEMSharedSecret) -> &'a [u8] {
         ss.as_ref()
     }
     // Signature based functions
-    fn sign(&self, data: &[u8], key: &oqs::sig::SecretKey) -> oqs::sig::Signature {
-        get_q_sig_algo()
-            .sign(data, key)
-            .expect("Unable to sign digest")
+    fn sign(&self, data: &[u8], key: &Self::SigSec) -> Self::Signature {
+        unsafe {
+            let mut sig_len: usize = PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_BYTES;
+            let mut signature = Self::Signature::default();
+            PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_signature(
+                signature.as_mut_ptr(),
+                &mut sig_len as *mut _,
+                &data[0] as *const _,
+                data.len(),
+                key.as_ptr(),
+            );
+            signature
+        }
     }
-    fn verify(
-        &self,
-        message: &[u8],
-        signature: &oqs::sig::Signature,
-        key: &oqs::sig::PublicKey,
-    ) -> bool {
-        match get_q_sig_algo().verify(message, signature, key) {
-            Ok(()) => true,
-            Err(_) => false,
+    fn verify(&self, message: &[u8], signature: &Self::Signature, key: &Self::SigPub) -> bool {
+        unsafe {
+            match PQCLEAN_DILITHIUM5_CLEAN_crypto_sign_verify(
+                signature.as_ptr(),
+                signature.len(),
+                message.as_ptr(),
+                message.len(),
+                key.as_ptr(),
+            ) {
+                0 => true,
+                _ => false,
+            }
         }
     }
     // Serializers and Metadata
     fn signature_length(&self) -> i64 {
-        get_q_sig_algo().length_signature() as i64
+        PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_BYTES as i64
     }
-    fn signature_to_bytes<'a>(&self, signature: &'a oqs::sig::Signature) -> &'a [u8] {
+    fn signature_bytes<'a>(&self, signature: &'a Self::Signature) -> &'a [u8] {
         signature.as_ref()
     }
-    fn signature_from_bytes(&self, bytes: &[u8]) -> oqs::sig::Signature {
-        get_q_sig_algo()
-            .signature_from_bytes(bytes)
-            .expect("Unable to extract signature from file.")
-            .to_owned()
+    fn signature_bytes_mut<'a>(&self, signature: &'a mut Self::Signature) -> &'a mut [u8] {
+        signature.as_mut()
     }
 }

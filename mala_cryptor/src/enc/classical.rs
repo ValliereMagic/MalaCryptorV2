@@ -1,16 +1,21 @@
 use super::*;
 use crate::key_file::*;
 use libsodium_sys::*;
-use std::convert::TryInto;
 use std::ptr;
 
 type SodiumSignature = [u8; crypto_sign_BYTES as usize];
-const USIZE_crypto_kx_SESSIONKEYBYTES: usize = crypto_kx_SESSIONKEYBYTES as usize;
-type SodiumSessionKey = SecretMem<USIZE_crypto_kx_SESSIONKEYBYTES>;
+const USIZE_CRYPTO_KX_SESSIONKEYBYTES: usize = crypto_kx_SESSIONKEYBYTES as usize;
+type SodiumSessionKey = SecretMem<USIZE_CRYPTO_KX_SESSIONKEYBYTES>;
 
 impl Create for SodiumSignature {
     fn default() -> Self {
         [0u8; crypto_sign_BYTES as usize]
+    }
+}
+
+impl Create for () {
+    fn default() -> Self {
+        ()
     }
 }
 
@@ -66,10 +71,10 @@ impl IAsyCryptable for ClassicalKeyQuad {
         }
     }
     // Serializers and Metadata
-    fn ciphertext_to_bytes<'a>(&self, _ct: &'a ()) -> &'a [u8] {
+    fn ciphertext_bytes<'a>(&self, _ct: &'a Self::KEMCipherText) -> &'a [u8] {
         unreachable!();
     }
-    fn ciphertext_from_bytes(&self, _bytes: &[u8]) {
+    fn ciphertext_bytes_mut<'a>(&self, _ct: &'a mut Self::KEMCipherText) -> &'a mut [u8] {
         unreachable!();
     }
     fn ciphertext_length(&self) -> usize {
@@ -109,12 +114,10 @@ impl IAsyCryptable for ClassicalKeyQuad {
     fn signature_length(&self) -> i64 {
         crypto_sign_BYTES as i64
     }
-    fn signature_to_bytes<'a>(&self, signature: &'a SodiumSignature) -> &'a [u8] {
+    fn signature_bytes<'a>(&self, signature: &'a Self::Signature) -> &'a [u8] {
         signature.as_ref()
     }
-    fn signature_from_bytes(&self, bytes: &[u8]) -> SodiumSignature {
-        bytes.to_owned()[0..crypto_sign_BYTES as usize]
-            .try_into()
-            .expect("Signature bytes not long enough.")
+    fn signature_bytes_mut<'a>(&self, signature: &'a mut Self::Signature) -> &'a mut [u8] {
+        signature.as_mut()
     }
 }

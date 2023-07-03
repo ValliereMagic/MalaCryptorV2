@@ -2,11 +2,11 @@ use super::base::*;
 use libsodium_sys::*;
 
 pub type SodiumSigPub = [u8; crypto_sign_PUBLICKEYBYTES as usize];
-const USIZE_crypto_sign_SECRETKEYBYTES: usize = crypto_sign_SECRETKEYBYTES as usize;
-pub type SodiumSigSec = SecretMem<USIZE_crypto_sign_SECRETKEYBYTES>;
+const USIZE_CRYPTO_SIGN_SECRETKEYBYTES: usize = crypto_sign_SECRETKEYBYTES as usize;
+pub type SodiumSigSec = SecretMem<USIZE_CRYPTO_SIGN_SECRETKEYBYTES>;
 pub type SodiumKEMPub = [u8; crypto_kx_PUBLICKEYBYTES as usize];
-const USIZE_crypto_kx_SECRETKEYBYTES: usize = crypto_kx_SECRETKEYBYTES as usize;
-pub type SodiumKEMSec = SecretMem<USIZE_crypto_kx_SECRETKEYBYTES>;
+const USIZE_CRYPTO_KX_SECRETKEYBYTES: usize = crypto_kx_SECRETKEYBYTES as usize;
+pub type SodiumKEMSec = SecretMem<USIZE_CRYPTO_KX_SECRETKEYBYTES>;
 
 impl Create for SodiumSigPub {
     fn default() -> Self {
