@@ -136,7 +136,7 @@ where
         let mut sym_key = SodiumSymKey::default();
         sym_key
             .as_mut()
-            .write_all(self.crypt.shared_secret_to_bytes(&ss))?;
+            .copy_from_slice(self.crypt.shared_secret_to_bytes(&ss));
         encrypt_file(&mut file_in, &mut file_out, sym_key)?;
         self.sign_file(skey_path, file_out_path)
     }
@@ -179,7 +179,7 @@ where
         let mut sym_key = SodiumSymKey::default();
         sym_key
             .as_mut()
-            .write_all(self.crypt.shared_secret_to_bytes(&ss))?;
+            .copy_from_slice(self.crypt.shared_secret_to_bytes(&ss));
         decrypt_file(&mut file_in, &mut file_out, sym_key)?;
         // Remove the encrypted in-file; it was modified in the decryption procedure.
         fs::remove_file(file_in_path)?;
