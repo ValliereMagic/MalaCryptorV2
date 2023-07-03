@@ -1,4 +1,5 @@
 use super::key_file::SodiumSymKey;
+use crate::key_file::Create;
 use libsodium_sys::*;
 use std::ffi::CString;
 use std::{ptr::write_volatile, sync::atomic};

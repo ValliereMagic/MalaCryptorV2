@@ -3,7 +3,6 @@ use crate::chunked_file_reader::{ChunkStatus, ChunkedFileReader};
 use crate::global_constants::*;
 use crate::key_file::*;
 use libsodium_sys::*;
-use std::convert::TryInto;
 use std::fs;
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -134,14 +133,11 @@ where
         }
         // Encrypt the source file with the shared secret, and write it to the out
         // file
-        encrypt_file(
-            &mut file_in,
-            &mut file_out,
-            self.crypt.shared_secret_to_bytes(&ss)
-                [0..crypto_secretstream_xchacha20poly1305_KEYBYTES as usize]
-                .try_into()
-                .expect("Unable to turn shared secret into symmetric key"),
-        )?;
+        let mut sym_key = SodiumSymKey::default();
+        sym_key
+            .as_mut()
+            .write_all(self.crypt.shared_secret_to_bytes(&ss))?;
+        encrypt_file(&mut file_in, &mut file_out, sym_key)?;
         self.sign_file(skey_path, file_out_path)
     }
 
@@ -180,14 +176,11 @@ where
                 .retrieve_shared_secret(&skey.1, &our_pkey.1, &sender_pkey.1, ct.as_ref());
         // Our file pointer is at the beginning of the encrypted file, and we have
         // removed the signature from the end. Time to finally decrypt the file
-        decrypt_file(
-            &mut file_in,
-            &mut file_out,
-            self.crypt.shared_secret_to_bytes(&ss)
-                [0..crypto_secretstream_xchacha20poly1305_KEYBYTES as usize]
-                .try_into()
-                .expect("Unable to turn shared secret into symmetric key."),
-        )?;
+        let mut sym_key = SodiumSymKey::default();
+        sym_key
+            .as_mut()
+            .write_all(self.crypt.shared_secret_to_bytes(&ss))?;
+        decrypt_file(&mut file_in, &mut file_out, sym_key)?;
         // Remove the encrypted in-file; it was modified in the decryption procedure.
         fs::remove_file(file_in_path)?;
         Ok(())
