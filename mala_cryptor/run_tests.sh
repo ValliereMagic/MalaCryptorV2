@@ -1,2 +1,2 @@
 #!/bin/bash
-RUST_MIN_STACK=33554432 cargo test
+RUST_MIN_STACK=100000000 cargo test --release

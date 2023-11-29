@@ -1,11 +1,11 @@
 use super::base::*;
+use pqcrypto_classicmceliece::ffi::*;
 use pqcrypto_dilithium::ffi::*;
-use pqcrypto_kyber::ffi::*;
 
 pub type DilithiumSigPub = [u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_PUBLICKEYBYTES];
 pub type DilithiumSigSec = SecretMem<PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES>;
-pub type KyberKEMPub = [u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES];
-pub type KyberKEMSec = SecretMem<PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES>;
+pub type KyberKEMPub = [u8; PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_PUBLICKEYBYTES];
+pub type KyberKEMSec = SecretMem<PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_SECRETKEYBYTES>;
 
 impl Create for DilithiumSigPub {
     fn default() -> Self {
@@ -15,7 +15,7 @@ impl Create for DilithiumSigPub {
 
 impl Create for KyberKEMPub {
     fn default() -> Self {
-        [0u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES]
+        [0u8; PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_PUBLICKEYBYTES]
     }
 }
 
@@ -86,7 +86,7 @@ impl IKeyPairCreator for QKeyExchange {
         let mut public_key = Self::Pub::default();
         let mut secret_key = Self::Sec::default();
         unsafe {
-            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_keypair(
+            match PQCLEAN_MCELIECE8192128_CLEAN_crypto_kem_keypair(
                 public_key.as_mut_ptr(),
                 secret_key.as_mut_ptr(),
             ) {
@@ -115,10 +115,10 @@ impl IKeyPairCreator for QKeyExchange {
         self.0.sec_offset() + PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_SECRETKEYBYTES as u64
     }
     fn pub_key_len() -> usize {
-        PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES
+        PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_PUBLICKEYBYTES
     }
     fn sec_key_len() -> usize {
-        PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES
+        PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_SECRETKEYBYTES
     }
 }
 
@@ -137,7 +137,7 @@ fn test_quantum() {
     );
     assert_eq!(
         publ.1.as_ref().len(),
-        PQCLEAN_KYBER1024_CLEAN_CRYPTO_PUBLICKEYBYTES
+        PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_PUBLICKEYBYTES
     );
     // Sec
     let sec = q.get_sec("/tmp/sec_key_q_test").unwrap();
@@ -147,7 +147,7 @@ fn test_quantum() {
     );
     assert_eq!(
         sec.1.as_ref().len(),
-        PQCLEAN_KYBER1024_CLEAN_CRYPTO_SECRETKEYBYTES
+        PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_SECRETKEYBYTES
     );
     fs::remove_file("/tmp/pub_key_q_test").unwrap();
     fs::remove_file("/tmp/sec_key_q_test").unwrap();

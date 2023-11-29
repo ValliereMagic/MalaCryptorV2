@@ -1,13 +1,13 @@
 [package]
 name = "mala_cryptor"
-version = "2.3.0"
+version = "3.0.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 libsodium-sys-stable = { version = "1", default-features = false, features = ["minimal"] }
-pqcrypto-kyber = "0.7.6"
-pqcrypto-dilithium = "0.4.6"
+pqcrypto-classicmceliece = "0.2.0"
+pqcrypto-dilithium = "0.5.0"
 clap = { version = "3", features = ["cargo"] }
 rpassword = {git = "https://github.com/ValliereMagic/rpassword.git"}

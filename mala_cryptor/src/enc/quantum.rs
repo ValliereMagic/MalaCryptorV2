@@ -1,8 +1,8 @@
 use super::*;
 use crate::key_file::*;
 
+use pqcrypto_classicmceliece::ffi::*;
 use pqcrypto_dilithium::ffi::*;
-use pqcrypto_kyber::ffi::*;
 
 type QSignature = [u8; PQCLEAN_DILITHIUM5_CLEAN_CRYPTO_BYTES];
 
@@ -12,9 +12,17 @@ impl Create for QSignature {
     }
 }
 
+type QKEMCipherText = [u8; PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_CIPHERTEXTBYTES];
+
+impl Create for QKEMCipherText {
+    fn default() -> Self {
+        [0u8; PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_CIPHERTEXTBYTES]
+    }
+}
+
 impl IAsyCryptable for QuantumKeyQuad {
-    type KEMSharedSecret = SecretMem<PQCLEAN_KYBER1024_CLEAN_CRYPTO_BYTES>;
-    type KEMCipherText = [u8; PQCLEAN_KYBER1024_CLEAN_CRYPTO_CIPHERTEXTBYTES];
+    type KEMSharedSecret = SecretMem<PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_BYTES>;
+    type KEMCipherText = [u8; PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_CIPHERTEXTBYTES];
     type Signature = QSignature;
     // Shared secret based functions
     fn uses_cipher_text(&self) -> bool {
@@ -29,7 +37,7 @@ impl IAsyCryptable for QuantumKeyQuad {
         let mut ct = Self::KEMCipherText::default();
         let mut ss = Self::KEMSharedSecret::default();
         unsafe {
-            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_enc(
+            match PQCLEAN_MCELIECE8192128_CLEAN_crypto_kem_enc(
                 ct.as_mut_ptr(),
                 ss.as_mut_ptr(),
                 dest_pkey.as_ptr(),
@@ -48,7 +56,7 @@ impl IAsyCryptable for QuantumKeyQuad {
     ) -> Self::KEMSharedSecret {
         let mut ss = Self::KEMSharedSecret::default();
         unsafe {
-            match PQCLEAN_KYBER1024_CLEAN_crypto_kem_dec(
+            match PQCLEAN_MCELIECE8192128_CLEAN_crypto_kem_dec(
                 ss.as_mut_ptr(),
                 ciphertext.expect("Ciphertext must be passed.").as_ptr(),
                 our_skey.as_ptr(),
@@ -66,7 +74,7 @@ impl IAsyCryptable for QuantumKeyQuad {
         ct.as_mut()
     }
     fn ciphertext_length(&self) -> usize {
-        PQCLEAN_KYBER1024_CLEAN_CRYPTO_CIPHERTEXTBYTES
+        PQCLEAN_MCELIECE8192128_CLEAN_CRYPTO_CIPHERTEXTBYTES
     }
     fn shared_secret_to_bytes<'a>(&self, ss: &'a Self::KEMSharedSecret) -> &'a [u8] {
         ss.as_ref()

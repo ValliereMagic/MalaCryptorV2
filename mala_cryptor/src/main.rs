@@ -349,7 +349,7 @@ fn main() -> Result<()> {
     // using are heavy in stack utilization. Therefore, give the application a
     // 32MiB stack size programmatically
     match thread::Builder::new()
-        .stack_size(32 * 1024 * 1024)
+        .stack_size(100 * 1024 * 1024)
         .spawn(application)
         .expect("Unable to Start execution thread with specified stack size.")
         .join()
